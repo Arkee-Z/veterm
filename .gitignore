@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Deno
+deno.lock
+
+# Editor
+.vscode/
+.idea/
+
+# Env (contains passwords — never commit)
+.env
+.env.local
+
+# User data (generated at runtime)
+data/users.json
