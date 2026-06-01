@@ -93,9 +93,20 @@ async function resolveFilePath(raw: string): Promise<string> {
   } else {
     candidates.push(raw + ".md", raw, "posts/" + raw + ".md", "posts/" + raw);
   }
+
+  // Try DB first (faster, works for imported files not on disk)
+  for (const path of candidates) {
+    try {
+      await store.readFile(path);
+      return path;
+    } catch { /* next */ }
+  }
+
+  // Fallback to disk stat for files not yet in DB
   for (const path of candidates) {
     try { await Deno.stat(`./content/${path}`); return path; } catch { /* next */ }
   }
+
   throw new Error(`File not found: ${raw}`);
 }
 

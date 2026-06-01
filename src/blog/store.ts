@@ -21,7 +21,8 @@ export async function listFiles(dirPath: string = ""): Promise<FileEntry[]> {
     throw new Error("Access denied: invalid path");
   }
 
-  const prefix = dirPath ? `${dirPath}/` : "";
+  const sanitized = dirPath.replace(/\/+$/, "");
+  const prefix = sanitized ? `${sanitized}/` : "";
   const pages = db.listPages(prefix);
 
   const entries: FileEntry[] = [];

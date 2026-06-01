@@ -173,7 +173,7 @@ const Terminal = {
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i].trim();
       if (!line || line === "(empty directory)") continue;
-      var isDir = line.indexOf("  ") === 0;  // ls output: "  name/" for dirs
+      var isDir = line.endsWith("/");
       var name = line.replace(/^\s+/, "").replace(/\/$/, "");
       if (!name) continue;
       if (mode === "dirs" && !isDir) continue;
@@ -308,6 +308,7 @@ const Terminal = {
       Editor.reset();
       App.viewerPanel.classList.remove("hidden");
       App.editorPanel.classList.add("hidden");
+      App.closeTerminal();
     } else if (result.action === "goto_home") {
       App.currentProject = null;
       App.lastViewedHtml = null;
@@ -316,6 +317,7 @@ const Terminal = {
       App.loadDefaultContent();
       App.viewerPanel.classList.remove("hidden");
       App.editorPanel.classList.add("hidden");
+      App.closeTerminal();
     } else if (result.action === "goto_link" && result.link) {
       window.open(result.link, "_blank");
     } else if (result.action === "edit") {
