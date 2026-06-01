@@ -136,13 +136,17 @@ const Terminal = {
       case "rm":
         return this._getCached("ls_files_deep", 3000, async () => {
           var allFiles = [];
-          // Scan root, posts/, projects/ for files
-          var dirs = ["", "posts/", "projects/"];
+          var dirs = [
+            { prefix: "", dir: "" },
+            { prefix: "posts/", dir: "posts/" },
+            { prefix: "projects/", dir: "projects/" }
+          ];
           for (var d = 0; d < dirs.length; d++) {
-            var result = await API.execCommand("ls " + dirs[d]);
+            var result = await API.execCommand("ls " + dirs[d].dir);
             var files = this._parseLsOutput(result.output || "", "files");
             for (var f = 0; f < files.length; f++) {
-              if (allFiles.indexOf(files[f]) === -1) allFiles.push(files[f]);
+              var fullPath = dirs[d].prefix + files[f];
+              if (allFiles.indexOf(fullPath) === -1) allFiles.push(fullPath);
             }
           }
           return allFiles;
