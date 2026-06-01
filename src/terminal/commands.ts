@@ -6,6 +6,7 @@ import { getSessionFromRequest, verifyUser, createSession } from "../server/auth
 import * as store from "../blog/store.ts";
 import { renderMarkdown } from "../blog/render.ts";
 import { canListDirectory } from "./permissions.ts";
+import { cin, cout, sync } from "../db/sync.ts";
 import type { UserGroup } from "./permissions.ts";
 
 export interface CommandResult {
@@ -17,6 +18,7 @@ export interface CommandResult {
   close?: boolean;
   sessionCookie?: string;
   action?: string;
+  link?: string;
 }
 
 export interface CommandDef {
@@ -58,7 +60,7 @@ export function getHelpText(): string {
     const line = `    ${def.name.padEnd(10)} ${def.help}`;
     if (["ls", "cat"].includes(def.name)) bySection["BROWSING"].push(line);
     else if (["edit", "touch"].includes(def.name)) bySection["EDITING"].push(line);
-    else if (["mkdir", "mount", "rm", "rmdir"].includes(def.name)) bySection["FILE OPS (admin)"].push(line);
+    else if (["mkdir", "mount", "rm", "rmdir", "cin", "cout", "sync"].includes(def.name)) bySection["FILE OPS (admin)"].push(line);
     else if (["goto"].includes(def.name)) bySection["NAVIGATION"].push(line);
     else if (["login", "logout", "whoami"].includes(def.name)) bySection["AUTH"].push(line);
     else bySection["SYSTEM"].push(line);
@@ -211,23 +213,44 @@ async function handleHelp(): Promise<CommandResult> {
 }
 
 // ---- mount command (admin) ----
+// mount <name> project   → create HTML project sandbox
+// mount <name> link <url> → create link reference
 async function handleMount(args: string[], _ctx: CommandContext): Promise<CommandResult> {
-  if (args.length === 0) return { output: "Usage: mount <name>" };
+  if (args.length < 1) return { output: "Usage:\n  mount <name> project\n  mount <name> link <url>" };
   const name = args[0].toLowerCase().replace(/[^a-z0-9\-]/g, "-");
   if (!name) return { output: "Invalid project name." };
 
+  const subCmd = args[1] || "project";
+
+  if (subCmd === "link") {
+    const url = args[2];
+    if (!url) return { output: "Usage: mount <name> link <url>" };
+    if (!/^https?:\/\//.test(url)) return { output: "Invalid URL: must start with http:// or https://" };
+    const filePath = `projects/${name}/index.md`;
+    try {
+      await store.createDirectory(`projects/${name}`);
+      await store.writeFile(filePath, url, "link");
+      return { output: `Mounted link: ${name} → ${url}` };
+    } catch (err) {
+      return { output: `Error: ${(err as Error).message}` };
+    }
+  }
+
+  // Default: project mode
   const dirPath = `projects/${name}`;
-  const indexPath = `projects/${name}/index.md`;
+  const indexPath = `projects/${name}/index.html`;
 
   try {
     // Check if already exists
     try {
       await store.readFile(indexPath);
       return { output: `Project '${name}' already exists. Use 'goto ${name}' to view it.` };
-    } catch { /* doesn't exist, proceed */ }
+    } catch { /* doesn't exist */ }
+
+    const tpl = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${name}</title><style>body{font-family:system-ui,sans-serif;max-width:720px;margin:48px auto;padding:0 24px;color:#333;background:#fafafa;}h1{font-size:1.8rem;}p{line-height:1.7;}</style></head><body><h1>${name}</h1><p>Your custom HTML project page.</p></body></html>`;
 
     await store.createDirectory(dirPath);
-    await store.writeFile(indexPath, `# ${name}\n\n> Project page — edit me!\n\n---\n\n## Overview\n\n*Coming soon...*`);
+    await store.writeFile(indexPath, tpl, "html");
     return { output: `Mounted project: ${name}\nDirectory: content/${dirPath}\nIndex: content/${indexPath}` };
   } catch (err) {
     return { output: `Error: ${(err as Error).message}` };
@@ -235,23 +258,55 @@ async function handleMount(args: string[], _ctx: CommandContext): Promise<Comman
 }
 
 // ---- goto command (all) ----
+// goto <name>    → navigate to project/link
+// goto home      → return to blog main
 async function handleGoto(args: string[], _ctx: CommandContext): Promise<CommandResult> {
-  if (args.length === 0) return { output: "Usage: goto <project_name>" };
+  if (args.length === 0) return { output: "Usage: goto <name>  |  goto home" };
   const name = args[0].toLowerCase();
-  const indexPath = `projects/${name}/index.md`;
+
+  // goto home → return to main blog
+  if (name === "home") {
+    return { output: "home", action: "goto_home" };
+  }
+
+  // Try project/index.html first
+  const htmlPath = `projects/${name}/index.html`;
+  const mdPath = `projects/${name}/index.md`;
 
   try {
-    const content = await store.readFile(indexPath);
-    return {
-      output: content,
-      html: renderMarkdown(content),
-      source: content,
-      filePath: indexPath,
-      action: "render",
-    };
+    // Check html type first
+    const row = await store.readFile(htmlPath).then((c) => ({ content: c, type: "html" })).catch(async () => {
+      const c = await store.readFile(mdPath);
+      return { content: c, type: await store.getPageType(mdPath) };
+    });
+
+    if (row.type === "link") {
+      return { output: `Redirecting to: ${row.content}`, action: "goto_link", link: row.content };
+    }
+
+    if (row.type === "html") {
+      return { output: row.content, html: row.content, filePath: htmlPath, action: "render_project" };
+    }
+
+    return { output: row.content, html: renderMarkdown(row.content), source: row.content, filePath: mdPath, action: "render" };
   } catch {
     return { output: `Project not found: ${name}. Use 'mount ${name}' to create it.` };
   }
+}
+
+// ---- cin/cout/sync (admin) ----
+async function handleCin(args: string[], _ctx: CommandContext): Promise<CommandResult> {
+  if (args.length === 0) return { output: "Usage: cin <file_path>" };
+  try { return { output: await cin(args[0]) }; }
+  catch (err) { return { output: `Error: ${(err as Error).message}` }; }
+}
+async function handleCout(args: string[], _ctx: CommandContext): Promise<CommandResult> {
+  try { return { output: await cout(args[0]) }; }
+  catch (err) { return { output: `Error: ${(err as Error).message}` }; }
+}
+async function handleSync(_args: string[], _ctx: CommandContext): Promise<CommandResult> {
+  try { return { output: await sync() }; }
+  catch (err) { return { output: `Error: ${(err as Error).message}` }; }
 }
 
 // ---- Register all commands ----
@@ -260,8 +315,11 @@ registerCommand({ name: "cat", group: "all", help: "View file content (rendered)
 registerCommand({ name: "edit", group: "admin", help: "Open file in web editor", handler: handleEdit });
 registerCommand({ name: "touch", group: "admin", help: "Create a new empty file", handler: (a) => handleTouch(a) });
 registerCommand({ name: "mkdir", group: "admin", help: "Create a directory", handler: (a) => handleMkdir(a) });
-registerCommand({ name: "mount", group: "admin", help: "Mount a new project page", handler: handleMount });
-registerCommand({ name: "goto", group: "all", help: "Navigate to a project", handler: handleGoto });
+registerCommand({ name: "mount", group: "admin", help: "Mount project or link", handler: handleMount });
+registerCommand({ name: "goto", group: "all", help: "Navigate to project or home", handler: handleGoto });
+registerCommand({ name: "cin", group: "admin", help: "Import .md file to DB", handler: handleCin });
+registerCommand({ name: "cout", group: "admin", help: "Export DB to .md files", handler: handleCout });
+registerCommand({ name: "sync", group: "admin", help: "Sync content/ to DB", handler: handleSync });
 registerCommand({ name: "rm", group: "admin", help: "Delete a file", handler: (a) => handleRm(a) });
 registerCommand({ name: "rmdir", group: "admin", help: "Delete a directory", handler: (a) => handleRmdir(a) });
 registerCommand({ name: "login", group: "all", help: "Log in", handler: handleLogin });

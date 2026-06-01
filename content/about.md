@@ -1,6 +1,6 @@
 # Gene Max Zhang
 
-> Full-Stack Developer & Open Source Enthusiast
+> Full-Stack Engineer · Open Source · Terminal Enthusiast
 
 ---
 
@@ -10,14 +10,21 @@
 
 ### About Me
 
-Hello! I'm a passionate software engineer who loves building beautiful and functional web applications. I enjoy working with modern technologies and contributing to open source projects.
+I build the web through terminals. My work spans full-stack engineering with a focus on Rust, TypeScript, and Go. This blog itself is a terminal-driven experiment — every page you see here was published, edited, and styled entirely through the command pane below.
+
+I believe the terminal is the most honest interface between a developer and their machine. Everything else is decoration.
 
 ### Skills
 
-- **Languages:** TypeScript, C, Go, Python
-- **Frontend:** React, Vue, Tailwind CSS
-- **Backend:** Deno, Node.js, PostgreSQL
-- **Tools:** Docker, Git, Linux
+- **Languages:** TypeScript, Rust, Go, C, Python
+- **Frontend:** React, Next.js, Tailwind CSS, Vue
+- **Backend:** Deno, Node.js, PostgreSQL, Redis
+- **Infra:** Docker, Linux, Nginx, GitHub Actions
+
+### Projects
+
+- **Veta Blog** — This very site. Terminal-native blog engine built with Deno + SQLite.
+- **Open source** — Active contributor on GitHub. See `goto github` for links.
 
 ### Motto
 

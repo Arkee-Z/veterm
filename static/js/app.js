@@ -21,6 +21,8 @@ const App = {
   lastViewedHtml: null,
   /** @type {string|null} */
   lastViewedFile: null,
+  /** @type {string|null} */
+  currentProject: null,
 
   init() {
     this.app = document.getElementById("app");

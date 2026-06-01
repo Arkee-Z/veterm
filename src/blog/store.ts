@@ -1,4 +1,13 @@
+/**
+ * Content store — database-first with filesystem sync.
+ * On Deno Deploy, falls back to embedded content.
+ */
+import { EMBEDDED_FILES, isDenoDeploy } from "./embed.ts";
+import * as db from "../db/database.ts";
+
 const CONTENT_ROOT = "./content";
+const isDeploy = isDenoDeploy();
+const ERR_DEPLOY_WRITE = "File writing is not available on Deno Deploy. Deploy locally for full editing.";
 
 export interface FileEntry {
   name: string;
@@ -12,24 +21,23 @@ export async function listFiles(dirPath: string = ""): Promise<FileEntry[]> {
     throw new Error("Access denied: invalid path");
   }
 
-  const fullPath = dirPath ? `${CONTENT_ROOT}/${dirPath}` : CONTENT_ROOT;
-
-  try {
-    await Deno.stat(fullPath);
-  } catch {
-    throw new Error(`No such directory: ${dirPath || "/"}`);
-  }
+  const prefix = dirPath ? `${dirPath}/` : "";
+  const pages = db.listPages(prefix);
 
   const entries: FileEntry[] = [];
-  for await (const entry of Deno.readDir(fullPath)) {
-    entries.push({
-      name: entry.name,
-      path: dirPath ? `${dirPath}/${entry.name}` : entry.name,
-      isDirectory: entry.isDirectory,
-    });
+  const seen = new Set<string>();
+
+  for (const page of pages) {
+    const rest = page.path.slice(prefix.length);
+    if (!rest) continue;
+    const slashIdx = rest.indexOf("/");
+    const name = slashIdx === -1 ? rest : rest.slice(0, slashIdx);
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    const isDir = slashIdx !== -1 && slashIdx < rest.length - 1;
+    entries.push({ name, path: prefix + name, isDirectory: isDir });
   }
 
-  // Sort: directories first, then alphabetical
   entries.sort((a, b) => {
     if (a.isDirectory && !b.isDirectory) return -1;
     if (!a.isDirectory && b.isDirectory) return 1;
@@ -40,29 +48,37 @@ export async function listFiles(dirPath: string = ""): Promise<FileEntry[]> {
 }
 
 export async function readFile(filePath: string): Promise<string> {
-  // Restrict access to only .md, .txt, .json files within content/
   if (!isAllowedPath(filePath)) {
     throw new Error("Access denied: unsupported file type");
   }
 
-  const fullPath = `${CONTENT_ROOT}/${filePath}`;
-  try {
-    return await Deno.readTextFile(fullPath);
-  } catch {
-    throw new Error(`No such file: ${filePath}`);
-  }
+  const row = db.getPage(filePath);
+  if (row) return row.content;
+
+  // Fallback to embedded
+  const emb = EMBEDDED_FILES[filePath];
+  if (emb !== undefined) return emb;
+
+  throw new Error(`No such file: ${filePath}`);
+}
+
+export async function getPageType(filePath: string): Promise<string> {
+  const row = db.getPage(filePath);
+  return row?.type || "md";
 }
 
 const MAX_FILE_SIZE = 500 * 1024; // 500KB
 
 async function ensureParentDir(fullPath: string): Promise<void> {
+  if (isDeploy) throw new Error(ERR_DEPLOY_WRITE);
   const parentDir = fullPath.substring(0, fullPath.lastIndexOf("/"));
   if (!parentDir || parentDir === CONTENT_ROOT) return;
   try { await Deno.mkdir(parentDir, { recursive: true }); } catch { /* exists */ }
 }
 
-export async function writeFile(filePath: string, content: string): Promise<void> {
-  if (!isAllowedPath(filePath)) {
+export async function writeFile(filePath: string, content: string, type: "md" | "html" | "link" = "md"): Promise<void> {
+  if (isDeploy) throw new Error(ERR_DEPLOY_WRITE);
+  if (!isAllowedPath(filePath) && type !== "html") {
     throw new Error("Access denied: unsupported file type");
   }
 
@@ -70,33 +86,34 @@ export async function writeFile(filePath: string, content: string): Promise<void
     throw new Error(`File too large (max ${MAX_FILE_SIZE / 1024}KB)`);
   }
 
+  // Write to disk
   const fullPath = `${CONTENT_ROOT}/${filePath}`;
   await ensureParentDir(fullPath);
   await Deno.writeTextFile(fullPath, content);
+
+  // Write to DB
+  db.upsertPage(filePath, content, type);
 }
 
 export async function createFile(filePath: string): Promise<void> {
+  if (isDeploy) throw new Error(ERR_DEPLOY_WRITE);
   if (!isAllowedPath(filePath)) {
     throw new Error("Access denied: unsupported file type");
   }
 
+  // Check if exists in DB
+  if (db.getPage(filePath)) {
+    throw new Error(`File already exists: ${filePath}`);
+  }
+
   const fullPath = `${CONTENT_ROOT}/${filePath}`;
   await ensureParentDir(fullPath);
-
-  // Check if file already exists
-  try {
-    await Deno.stat(fullPath);
-    throw new Error(`File already exists: ${filePath}`);
-  } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
-      await Deno.writeTextFile(fullPath, "");
-    } else {
-      throw err;
-    }
-  }
+  await Deno.writeTextFile(fullPath, "");
+  db.upsertPage(filePath, "", "md");
 }
 
 export async function createDirectory(dirPath: string): Promise<void> {
+  if (isDeploy) throw new Error(ERR_DEPLOY_WRITE);
   const fullPath = `${CONTENT_ROOT}/${dirPath}`;
   try {
     await Deno.mkdir(fullPath, { recursive: true });
@@ -106,53 +123,37 @@ export async function createDirectory(dirPath: string): Promise<void> {
 }
 
 export async function deleteFile(filePath: string): Promise<void> {
+  if (isDeploy) throw new Error(ERR_DEPLOY_WRITE);
   if (!isAllowedPath(filePath)) {
     throw new Error("Access denied: unsupported file type");
   }
 
+  db.deletePage(filePath);
+
   const fullPath = `${CONTENT_ROOT}/${filePath}`;
   try {
-    const stat = await Deno.stat(fullPath);
-    if (stat.isDirectory) {
-      throw new Error(`Is a directory, use rmdir: ${filePath}`);
-    }
     await Deno.remove(fullPath);
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
-      throw new Error(`No such file: ${filePath}`);
-    }
-    throw err;
+    if (!(err instanceof Deno.errors.NotFound)) throw err;
   }
 }
 
 export async function deleteDirectory(dirPath: string): Promise<void> {
+  if (isDeploy) throw new Error(ERR_DEPLOY_WRITE);
+  db.deletePagesByPrefix(`${dirPath}/`);
+
   const fullPath = `${CONTENT_ROOT}/${dirPath}`;
   try {
     await Deno.remove(fullPath, { recursive: true });
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
-      throw new Error(`No such directory: ${dirPath}`);
-    }
-    throw err;
+    if (!(err instanceof Deno.errors.NotFound)) throw err;
   }
-}
-
-function escapeHtml(text: string): string {
-  const map: Record<string, string> = {
-    [String.fromCharCode(38)]: String.fromCharCode(38) + "amp;",
-    [String.fromCharCode(60)]: String.fromCharCode(38) + "lt;",
-    [String.fromCharCode(62)]: String.fromCharCode(38) + "gt;",
-    [String.fromCharCode(34)]: String.fromCharCode(38) + "quot;",
-  };
-  return text.replace(/[&<>"]/g, (ch) => map[ch] || ch);
 }
 
 function isAllowedPath(filePath: string): boolean {
-  // Prevent directory traversal
   if (filePath.includes("..") || filePath.startsWith("/") || filePath.includes("\x00") || filePath.includes("~")) {
     return false;
   }
-  // Only allow markdown and text files
   const ext = filePath.split(".").pop()?.toLowerCase();
   return ext === "md" || ext === "txt" || ext === "json";
 }
