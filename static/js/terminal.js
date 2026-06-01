@@ -134,9 +134,18 @@ const Terminal = {
       case "cat":
       case "edit":
       case "rm":
-        return this._getCached("ls_files", 3000, async () => {
-          var result = await API.execCommand("ls");
-          return this._parseLsOutput(result.output || "", "files");
+        return this._getCached("ls_files_deep", 3000, async () => {
+          var allFiles = [];
+          // Scan root, posts/, projects/ for files
+          var dirs = ["", "posts/", "projects/"];
+          for (var d = 0; d < dirs.length; d++) {
+            var result = await API.execCommand("ls " + dirs[d]);
+            var files = this._parseLsOutput(result.output || "", "files");
+            for (var f = 0; f < files.length; f++) {
+              if (allFiles.indexOf(files[f]) === -1) allFiles.push(files[f]);
+            }
+          }
+          return allFiles;
         });
 
       case "touch":
