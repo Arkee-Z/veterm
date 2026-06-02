@@ -270,11 +270,10 @@ body {
   content: "";
   position: absolute;
   left: 6px;
-  bottom: 12px;
-  top: auto;
-  transform: none;
+  top: 6px;
+  bottom: 6px;
+  height: auto;
   width: 1px;
-  height: 1em;
   background: var(--accent);
   opacity: 0.5;
   box-shadow: 2px 0 0 0 var(--accent);
@@ -597,6 +596,15 @@ body {
    RESPONSIVE
    ============================================ */
 @media (max-width: 768px) {
-  .card-container { padding: 32px 24px; }
+  .viewer-panel { padding: 0; }
+  .card-container {
+    max-width: 100%;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 24px 16px;
+  }
+  .card-container::before { display: none; }
   .terminal-panel { height: 240px; }
 }
