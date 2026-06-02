@@ -16,15 +16,15 @@ I believe the terminal is the most honest interface between a developer and thei
 
 ### Skills
 
-- **Languages:** TypeScript, Rust, Go, C, Python
-- **Frontend:** React, Next.js, Tailwind CSS, Vue
-- **Backend:** Deno, Node.js, PostgreSQL, Redis
-- **Infra:** Docker, Linux, Nginx, GitHub Actions
+- **Languages:** TypeScript, Go, C, Python
+- **Frontend:** Fresh, PWA, Wails, WASM
+- **Backend:** Deno, SQLite, Gin, FastAPI
+- **Infra:** Docker, Linux, GitHub Actions
 
 ### Projects
 
-- **Veta Blog** — This very site. Terminal-native blog engine built with Deno + SQLite.
-- **Open source** — Active contributor on GitHub. See `goto github` for links.
+- **Veterm Blog** — This very site. Terminal-native blog engine built with Deno + SQLite.
+- **Open source** — Active contributor on GitHub. See \`goto github\` for links.
 
 ### Motto
 

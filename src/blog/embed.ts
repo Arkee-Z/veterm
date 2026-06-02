@@ -22,14 +22,14 @@ I believe the terminal is the most honest interface between a developer and thei
 
 ### Skills
 
-- **Languages:** TypeScript, Rust, Go, C, Python
-- **Frontend:** React, Next.js, Tailwind CSS, Vue
-- **Backend:** Deno, Node.js, PostgreSQL, Redis
-- **Infra:** Docker, Linux, Nginx, GitHub Actions
+- **Languages:** TypeScript, Go, C, Python
+- **Frontend:** Fresh, PWA, Wails, WASM
+- **Backend:** Deno, SQLite, Gin, FastAPI
+- **Infra:** Docker, Linux, GitHub Actions
 
 ### Projects
 
-- **Veta Blog** — This very site. Terminal-native blog engine built with Deno + SQLite.
+- **Veterm Blog** — This very site. Terminal-native blog engine built with Deno + SQLite.
 - **Open source** — Active contributor on GitHub. See \`goto github\` for links.
 
 ### Motto
@@ -42,7 +42,7 @@ I believe the terminal is the most honest interface between a developer and thei
 
 ---
 
-Welcome to **Veta** — a blog that treats the browser like a terminal emulator. This isn't your average static site. Everything you see here — every post, every project page, every theme toggle — happens through a command-line interface hidden behind a keyboard shortcut.
+Welcome to **Veterm** — a blog that treats the browser like a terminal emulator. This isn't your average static site. Everything you see here — every post, every project page, every theme toggle — happens through a command-line interface hidden behind a keyboard shortcut.
 
 ### How It Works
 
