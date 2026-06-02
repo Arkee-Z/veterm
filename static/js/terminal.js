@@ -302,8 +302,13 @@ const Terminal = {
 
     const result = await API.execCommand(command);
 
-    if (result.output) {
-      this.printLine(result.output, result.output.startsWith("Error") ? "output-line error" : "output-line");
+    // Don't dump file content into terminal for render actions
+    if (result.action !== "render" && result.action !== "render_project") {
+      if (result.output) {
+        this.printLine(result.output, result.output.startsWith("Error") ? "output-line error" : "output-line");
+      }
+    } else if (result.filePath) {
+      this.printLine("Rendered: " + result.filePath, "output-line");
     }
 
     if (result.sessionCookie) await this.refreshUserBadge();
