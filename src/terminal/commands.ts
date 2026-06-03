@@ -207,11 +207,11 @@ async function handleLogin(args: string[], _ctx: CommandContext): Promise<Comman
   const user = await verifyUser(args[0], args[1]);
   if (!user) return { output: "Invalid username or password." };
   const id = createSession(user);
-  return { output: `Logged in as ${user.username} (${user.group}).`, sessionCookie: `session=${id}; Path=/; HttpOnly; SameSite=Strict; Secure` };
+  return { output: `Logged in as ${user.username} (${user.group}).`, sessionCookie: `session=${id}; Path=/; HttpOnly; SameSite=Strict` };
 }
 
 function handleLogout(): CommandResult {
-  return { output: "Logged out.", sessionCookie: "session=; Path=/; HttpOnly; SameSite=Strict; Secure; Max-Age=0" };
+  return { output: "Logged out.", sessionCookie: "session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0" };
 }
 
 async function handleWhoami(_args: string[], ctx: CommandContext): Promise<CommandResult> {

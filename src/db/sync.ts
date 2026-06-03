@@ -5,13 +5,16 @@
  * - sync: sync content/ directory changes into database
  */
 import * as db from "./database.ts";
+import { isDenoDeploy } from "../blog/embed.ts";
 
 const CONTENT_ROOT = "./content";
+const ERR_DEPLOY = "Deno Deploy does not support file read/write operations. Use a local instance for cin/cout/sync.";
 
 /**
  * cin <path> — import a local .md file into content/ and DB.
  */
 export async function cin(filePath: string): Promise<string> {
+  if (isDenoDeploy()) throw new Error(ERR_DEPLOY);
   if (filePath.includes("..") || filePath.includes("~") || filePath.includes("\x00")) {
     throw new Error("Access denied: invalid path");
   }
@@ -49,6 +52,7 @@ export async function cin(filePath: string): Promise<string> {
  * cout [dir] — export all database contents to local .md files.
  */
 export async function cout(outputDir: string = "./export"): Promise<string> {
+  if (isDenoDeploy()) throw new Error(ERR_DEPLOY);
   if (outputDir.includes("..") || outputDir.includes("~") || outputDir.includes("\x00")) {
     throw new Error("Access denied: invalid output directory");
   }
@@ -77,6 +81,7 @@ export async function cout(outputDir: string = "./export"): Promise<string> {
  * sync — sync content/ directory changes into database.
  */
 export async function sync(): Promise<string> {
+  if (isDenoDeploy()) throw new Error(ERR_DEPLOY);
   const count = await db.fullSyncFromDisk();
   return `Synced ${count} pages from content/ to database.`;
 }

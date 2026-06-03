@@ -316,12 +316,15 @@ const Terminal = {
     if (result.action === "render" && result.html) {
       App.lastViewedHtml = result.html;
       App.lastViewedFile = result.filePath;
+      window.location.hash = result.filePath || "";
       Editor.showFileContent(result.source, result.html, result.filePath, false);
       App.switchToEditor(false);
     } else if (result.action === "render_project" && result.html) {
       App.lastViewedHtml = result.html;
       App.lastViewedFile = result.filePath;
-      App.currentProject = result.filePath ? result.filePath.split("/")[1] : null;
+      var proj = result.filePath ? result.filePath.split("/")[1] : null;
+      App.currentProject = proj;
+      window.location.hash = proj ? "project:" + proj : "";
       document.getElementById("rendered-content").innerHTML = result.html;
       Editor.reset();
       App.viewerPanel.classList.remove("hidden");
@@ -331,6 +334,7 @@ const Terminal = {
       App.currentProject = null;
       App.lastViewedHtml = null;
       App.lastViewedFile = null;
+      window.location.hash = "";
       Editor.reset();
       App.loadDefaultContent();
       App.viewerPanel.classList.remove("hidden");

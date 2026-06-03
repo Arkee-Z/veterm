@@ -45,8 +45,16 @@ const App = {
     // Global keyboard shortcuts
     document.addEventListener("keydown", (e) => this.handleGlobalKeydown(e));
 
-    // Load default content (about.md)
-    this.loadDefaultContent();
+    // Restore from hash, or load default
+    var hash = window.location.hash.slice(1); // remove leading #
+    if (hash.startsWith("project:")) {
+      var projName = hash.slice(8); // "project:" length = 8
+      this.restoreProject(projName);
+    } else if (hash) {
+      this.restoreFile(hash);
+    } else {
+      this.loadDefaultContent();
+    }
 
     // Initial user badge refresh
     Terminal.refreshUserBadge();
@@ -144,6 +152,26 @@ const App = {
       viewer.innerHTML = this.lastViewedHtml;
     } else {
       this.loadDefaultContent();
+    }
+  },
+
+  async restoreFile(filePath) {
+    var result = await API.renderFile(filePath);
+    if (!result.error) {
+      this.viewerPanel.querySelector("#rendered-content").innerHTML = result.html;
+      this.lastViewedHtml = result.html;
+      this.lastViewedFile = filePath;
+      this.currentProject = null;
+    }
+  },
+
+  async restoreProject(projName) {
+    var result = await API.execCommand("goto " + projName);
+    if (result.action === "render_project" && result.html) {
+      this.viewerPanel.querySelector("#rendered-content").innerHTML = result.html;
+      this.lastViewedHtml = result.html;
+      this.lastViewedFile = "projects/" + projName + "/index.html";
+      this.currentProject = projName;
     }
   },
 
