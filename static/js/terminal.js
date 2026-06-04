@@ -1,119 +1,82 @@
 /**
- * Terminal UI Controller
- * Handles terminal input, output rendering, and command history
+ * Veterm v2.0 — Terminal Controller
+ * Floating overlay terminal, independent of editor/viewer.
+ * cat/goto update viewer directly via hash routing.
+ * edit command only available to admin, opens editor overlay.
  */
 const Terminal = {
-  /** @type {HTMLInputElement} */
   input: null,
-  /** @type {HTMLDivElement} */
   output: null,
-  /** @type {HTMLDivElement} */
   panel: null,
-  /** @type {HTMLSpanElement} */
+  overlay: null,
   userBadge: null,
-  /** @type {string[]} */
   history: [],
-  /** @type {number} */
   historyIndex: -1,
-  /** @type {boolean} */
   enabled: false,
 
   init() {
     this.input = document.getElementById("terminal-input");
     this.output = document.getElementById("terminal-output");
     this.panel = document.getElementById("terminal-panel");
+    this.overlay = document.getElementById("terminal-overlay");
     this.userBadge = document.getElementById("terminal-user-badge");
 
     this.input.addEventListener("keydown", (e) => this.handleKeydown(e));
+    document.getElementById("terminal-close-btn").addEventListener("click", () => App.closeTerminal());
+    document.getElementById("terminal-backdrop").addEventListener("click", () => App.closeTerminal());
 
-    // Close button
-    document.getElementById("terminal-close-btn").addEventListener("click", () => {
-      App.closeTerminal();
-    });
-
-    // Resize handle
     this.initResize();
-
     this.enabled = true;
   },
 
   initResize() {
-    /** @type {HTMLDivElement} */
-    const handle = document.getElementById("terminal-resize-handle");
-    let startY = 0;
-    let startHeight = 0;
-
-    handle.addEventListener("mousedown", (e) => {
+    var handle = document.getElementById("terminal-resize-handle");
+    var self = this;
+    var startY, startH;
+    handle.addEventListener("mousedown", function(e) {
       startY = e.clientY;
-      startHeight = this.panel.offsetHeight;
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
+      startH = self.panel.offsetHeight;
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
       e.preventDefault();
     });
-
-    const onMouseMove = (e) => {
-      const delta = startY - e.clientY;
-      const newHeight = Math.max(120, Math.min(600, startHeight + delta));
-      this.panel.style.height = newHeight + "px";
-      this.panel.style.animation = "none";
-    };
-
-    const onMouseUp = () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
+    function onMove(e) {
+      var h = Math.max(120, Math.min(600, startH + (startY - e.clientY)));
+      self.panel.style.height = h + "px";
+    }
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
   },
 
   handleKeydown(e) {
-    if (!this.enabled) {
-      e.preventDefault();
-      return;
-    }
-
-    if (e.key === "Enter") {
-      e.preventDefault();
-      this.executeCommand();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      this.navigateHistory(-1);
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      this.navigateHistory(1);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      this.input.value = "";
-      App.closeTerminal();
-    } else if (e.key === "Tab") {
-      e.preventDefault();
-      this.handleAutoComplete();
-    }
+    if (!this.enabled) { e.preventDefault(); return; }
+    if (e.key === "Enter") { e.preventDefault(); this.executeCommand(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); this.navigateHistory(-1); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); this.navigateHistory(1); }
+    else if (e.key === "Escape") { this.input.value = ""; App.closeTerminal(); }
+    else if (e.key === "Tab") { e.preventDefault(); this.handleAutoComplete(); }
   },
 
-  // ---- Auto-complete (command-aware) ----
+  // ---- Auto-complete (same logic, production ready) ----
   _cache: {},
   _cacheTime: {},
 
   async handleAutoComplete() {
-    var input = this.input.value;
-    var pos = this.input.selectionStart || 0;
+    var input = this.input.value, pos = this.input.selectionStart || 0;
     var before = input.substring(0, pos);
     var parts = this._parseCmdParts(before);
-    if (parts.length === 0) return;
+    if (!parts.length) return;
 
-    // Command name completion
     if (parts.length === 1 && !before.endsWith(" ")) {
-      var prefix = parts[0].toLowerCase();
-      var match = this._findMatch(prefix, this._getCommandNames());
+      var match = this._findMatch(parts[0].toLowerCase(), this._getCommandNames());
       if (match) this._applyCompletion(match, 0, parts[0].length, input, pos);
       return;
     }
 
-    var cmd = parts[0].toLowerCase();
-    var argIdx = before.endsWith(" ") ? parts.length : parts.length - 1;
+    var candidates = await this._getCompletionCandidates(parts[0].toLowerCase());
     var argPrefix = before.endsWith(" ") ? "" : parts[parts.length - 1];
-
-    // Command-specific argument completion
-    var candidates = await this._getCompletionCandidates(cmd, argIdx);
     var match = this._findMatch(argPrefix, candidates);
     if (match) {
       var argStart = before.lastIndexOf(argPrefix);
@@ -122,67 +85,40 @@ const Terminal = {
     }
   },
 
-  async _getCompletionCandidates(cmd, argIdx) {
-    switch (cmd) {
-      case "ls":
-      case "rmdir":
-        return this._getCached("ls_dirs", 3000, async () => {
-          var result = await API.execCommand("ls");
-          return this._parseLsOutput(result.output || "", "dirs");
-        });
+  async _getCompletionCandidates(cmd) {
+    if (["ls", "lsdir"].includes(cmd)) return this._getCached("dirs", 3000, () => this._fetchAndParse("ls", "dirs"));
+    if (["cat", "rm"].includes(cmd)) return this._getCached("files", 3000, () => this._fetchDeep("files"));
+    if (cmd === "goto") return this._getCached("projects", 3000, () => this._fetchAndParse("ls projects/", "dirs", ["home"]));
+    if (cmd === "edit") return this._getCached("files", 3000, () => this._fetchDeep("files"));
+    return [];
+  },
 
-      case "cat":
-      case "edit":
-      case "rm":
-        return this._getCached("ls_files_deep", 3000, async () => {
-          var allFiles = [];
-          var dirs = [
-            { prefix: "", dir: "" },
-            { prefix: "posts/", dir: "posts/" },
-            { prefix: "projects/", dir: "projects/" }
-          ];
-          for (var d = 0; d < dirs.length; d++) {
-            var result = await API.execCommand("ls " + dirs[d].dir);
-            var files = this._parseLsOutput(result.output || "", "files");
-            for (var f = 0; f < files.length; f++) {
-              var fullPath = dirs[d].prefix + files[f];
-              if (allFiles.indexOf(fullPath) === -1) allFiles.push(fullPath);
-            }
-          }
-          return allFiles;
-        });
+  async _fetchAndParse(cmdOrDir, mode, prefixExtra) {
+    var result = await API.execCommand(cmdOrDir);
+    var names = this._parseLsOutput(result.output || "", mode);
+    if (prefixExtra) names.unshift.apply(names, prefixExtra);
+    return names;
+  },
 
-      case "touch":
-      case "mkdir":
-      case "cin":
-      case "cout":
-        return [];
-
-      case "mount":
-        if (argIdx === 1) return []; // free-form name
-        if (argIdx === 2) return ["project", "link"];
-        return [];
-
-      case "goto":
-        return this._getCached("goto_projects", 3000, async () => {
-          var result = await API.execCommand("ls projects/");
-          if (!result.output || result.output.startsWith("Error")) return ["home"];
-          var names = this._parseLsOutput(result.output, "dirs");
-          names.unshift("home");
-          return names;
-        });
-
-      default:
-        return this._getCached("ls_all", 3000, async () => {
-          var result = await API.execCommand("ls");
-          return this._parseLsOutput(result.output || "", "all");
-        });
+  async _fetchDeep(mode) {
+    var self = this;
+    var dirs = [{ p: "", d: "" }, { p: "posts/", d: "posts/" }, { p: "projects/", d: "projects/" }];
+    var results = await Promise.all(dirs.map(function(d) {
+      return API.execCommand("ls " + d.d);
+    }));
+    var all = [];
+    for (var i = 0; i < results.length; i++) {
+      var files = self._parseLsOutput(results[i].output || "", "files");
+      for (var j = 0; j < files.length; j++) {
+        var fp = dirs[i].p + files[j];
+        if (all.indexOf(fp) === -1) all.push(fp);
+      }
     }
+    return all;
   },
 
   _parseLsOutput(output, mode) {
-    var lines = output.split("\n");
-    var names = [];
+    var lines = output.split("\n"), names = [];
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i].trim();
       if (!line || line === "(empty directory)") continue;
@@ -198,191 +134,132 @@ const Terminal = {
 
   async _getCached(key, ttl, fetcher) {
     var now = Date.now();
-    if (this._cache[key] && this._cacheTime[key] && now - this._cacheTime[key] < ttl) {
-      return this._cache[key];
-    }
-    try {
-      var data = await fetcher();
-      this._cache[key] = data;
-      this._cacheTime[key] = now;
-      return data;
-    } catch (e) {
-      return [];
-    }
+    if (this._cache[key] && this._cacheTime[key] && now - this._cacheTime[key] < ttl) return this._cache[key];
+    try { var d = await fetcher(); this._cache[key] = d; this._cacheTime[key] = now; return d; }
+    catch (e) { return []; }
   },
 
   _parseCmdParts(input) {
-    var parts = [];
-    var current = "";
-    var inQuote = false;
-    var quoteChar = "";
+    var parts = [], cur = "", inQ = false, q = "";
     for (var i = 0; i < input.length; i++) {
       var ch = input[i];
-      if (inQuote) {
-        if (ch === quoteChar) { inQuote = false; } else { current += ch; }
-      } else if (ch === '"' || ch === "'") {
-        inQuote = true;
-        quoteChar = ch;
-      } else if (ch === " ") {
-        if (current) { parts.push(current); current = ""; }
-      } else {
-        current += ch;
-      }
+      if (inQ) { if (ch === q) inQ = false; else cur += ch; }
+      else if (ch === '"' || ch === "'") { inQ = true; q = ch; }
+      else if (ch === " ") { if (cur) parts.push(cur); cur = ""; }
+      else cur += ch;
     }
-    if (current || input.endsWith(" ")) {
-      if (current) parts.push(current);
-      else parts.push("");
-    }
+    if (cur || input.endsWith(" ")) { if (cur) parts.push(cur); else parts.push(""); }
     return parts;
   },
 
-  _getCommandNames() {
-    return ["ls", "cat", "edit", "touch", "mkdir", "mount", "goto", "cin", "cout", "sync", "rm", "rmdir", "login", "logout", "whoami", "help", "clear", "exit", "theme"];
-  },
+  _getCommandNames() { return ["ls", "cat", "edit", "touch", "mkdir", "mount", "goto", "cin", "cout", "sync", "rm", "rmdir", "login", "logout", "whoami", "help", "clear", "exit", "theme"]; },
 
   _findMatch(prefix, candidates) {
     if (!prefix) return null;
     var lower = prefix.toLowerCase();
-    var matches = candidates.filter(function(c) {
-      return c.toLowerCase().startsWith(lower) && c.toLowerCase() !== lower;
-    });
-    if (matches.length === 0) return null;
+    var matches = candidates.filter(function(c) { return c.toLowerCase().startsWith(lower) && c.toLowerCase() !== lower; });
+    if (!matches.length) return null;
     var common = matches[0];
     for (var i = 1; i < matches.length; i++) {
-      var s = matches[i];
-      var j = 0;
-      while (j < common.length && j < s.length && common[j] === s[j]) j++;
+      for (var j = 0; j < common.length && j < matches[i].length && common[j] === matches[i][j]; j++);
       common = common.substring(0, j);
     }
     return common.length > prefix.length ? common : matches[0];
   },
 
-  _applyCompletion(match, startPos, oldLen, input, cursorPos) {
-    var before = input.substring(0, startPos);
-    var after = input.substring(cursorPos);
-    this.input.value = before + match + after;
-    var newCursor = startPos + match.length;
-    this.input.setSelectionRange(newCursor, newCursor);
+  _applyCompletion(match, start, oldLen, input, cursor) {
+    var bef = input.substring(0, start), aft = input.substring(cursor);
+    this.input.value = bef + match + aft;
+    this.input.setSelectionRange(start + match.length, start + match.length);
   },
 
-  navigateHistory(direction) {
-    if (this.history.length === 0) return;
+  navigateHistory(dir) {
+    if (!this.history.length) return;
     if (this.historyIndex === -1) this.historyIndex = this.history.length;
-    this.historyIndex += direction;
-    if (this.historyIndex < 0) { this.historyIndex = 0; }
+    this.historyIndex += dir;
+    if (this.historyIndex < 0) this.historyIndex = 0;
     else if (this.historyIndex >= this.history.length) { this.historyIndex = -1; this.input.value = ""; return; }
     this.input.value = this.history[this.historyIndex];
   },
 
   async executeCommand() {
-    var cmd = this.input.value.trim();
-    var lower = cmd.toLowerCase();
-    
+    var raw = this.input.value.trim();
+    var lower = raw.toLowerCase();
     if (lower === "theme" || lower === "theme dark" || lower === "theme light") {
       this.input.value = "";
-      this.printLine("$ " + cmd, "command-line");
+      this.printLine("$ " + raw, "command-line");
       var target = lower.includes("light") ? "light" : (lower.includes("dark") ? "dark" : null);
-      if (!target) {
-        var current = document.documentElement.getAttribute("data-theme") || "dark";
-        target = current === "dark" ? "light" : "dark";
-      }
+      if (!target) { var cur = document.documentElement.getAttribute("data-theme") || "dark"; target = cur === "dark" ? "light" : "dark"; }
       App.setTheme(target);
       this.printLine("Theme switched to: " + target, "output-line");
-      this.output.scrollTop = this.output.scrollHeight;
       return;
     }
 
-    const command = this.input.value.trim();
+    var command = this.input.value.trim();
     this.input.value = "";
     if (!command) return;
-
     this.history.push(command);
     this.historyIndex = -1;
     this.printLine("$ " + command, "command-line");
 
-    const result = await API.execCommand(command);
+    var result = await API.execCommand(command);
 
-    // Don't dump file content into terminal for render actions
-    if (result.action !== "render" && result.action !== "render_project") {
-      if (result.output) {
-        this.printLine(result.output, result.output.startsWith("Error") ? "output-line error" : "output-line");
-      }
-    } else if (result.filePath) {
-      this.printLine("Rendered: " + result.filePath, "output-line");
+    if (result.output && result.action !== "render" && result.action !== "render_project") {
+      this.printLine(result.output, result.output.startsWith("Error") ? "output-line error" : "output-line");
     }
 
     if (result.sessionCookie) await this.refreshUserBadge();
 
-    if (result.action === "render" && result.html) {
-      App.lastViewedHtml = result.html;
-      App.lastViewedFile = result.filePath;
-      window.location.hash = result.filePath || "";
-      Editor.showFileContent(result.source, result.html, result.filePath, false);
-      App.switchToEditor(false);
-    } else if (result.action === "render_project" && result.html) {
-      App.lastViewedHtml = result.html;
-      App.lastViewedFile = result.filePath;
-      var proj = result.filePath ? result.filePath.split("/")[1] : null;
-      App.currentProject = proj;
-      window.location.hash = proj ? "project:" + proj : "";
-      document.getElementById("rendered-content").innerHTML = result.html;
-      Editor.reset();
-      App.viewerPanel.classList.remove("hidden");
-      App.editorPanel.classList.add("hidden");
+    // cat → update viewer via hash
+    if (result.action === "render" && result.html && result.filePath) {
+      window.location.hash = result.filePath;
+      App.onContentRendered(result.filePath, result.html);
+      this.printLine("Rendered: " + result.filePath, "output-line");
+    }
+    // goto project → update viewer
+    else if (result.action === "render_project" && result.html) {
+      var proj = result.filePath ? result.filePath.split("/")[1] : "unknown";
+      window.location.hash = "project:" + proj;
+      App.onContentRendered("project:" + proj, result.html);
+      this.printLine("Navigated to project: " + proj, "output-line");
       App.closeTerminal();
-    } else if (result.action === "goto_home") {
-      App.currentProject = null;
-      App.lastViewedHtml = null;
-      App.lastViewedFile = null;
+    }
+    // goto home
+    else if (result.action === "goto_home") {
       window.location.hash = "";
-      Editor.reset();
-      App.loadDefaultContent();
-      App.viewerPanel.classList.remove("hidden");
-      App.editorPanel.classList.add("hidden");
+      App.navigate("about.md");
       App.closeTerminal();
-    } else if (result.action === "goto_link" && result.link) {
+    }
+    // goto link
+    else if (result.action === "goto_link" && result.link) {
       window.open(result.link, "_blank");
-    } else if (result.action === "edit") {
-      Editor.openFile(result.filePath, result.source);
-      App.switchToEditor(true);
-    } else if (result.action === "list" && result.html) {
-      document.getElementById("rendered-content").innerHTML = '<div class="file-listing">' + result.html + "</div>";
+    }
+    // edit → open editor (admin only)
+    else if (result.action === "edit") {
+      this.printLine("Opening editor for: " + result.filePath, "output-line");
+      App.openEditor();
     }
 
-    if (result.clear) this.clearOutput();
+    if (result.clear) this.output.innerHTML = "";
     if (result.close) App.closeTerminal();
-
     this.output.scrollTop = this.output.scrollHeight;
   },
 
   printLine(text, className) {
-    const line = document.createElement("div");
+    var line = document.createElement("div");
     line.className = className || "output-line";
     line.textContent = text;
     this.output.appendChild(line);
   },
 
-  clearOutput() { this.output.innerHTML = ""; },
-
   async refreshUserBadge() {
-    const session = await API.getSession();
-    const group = session.group || "visitor";
-    this.userBadge.textContent = group;
-    if (session.loggedIn) {
-      this.userBadge.style.color = "#34d399";
-      this.userBadge.style.background = "rgba(52, 211, 153, 0.15)";
-    } else {
-      this.userBadge.style.color = "#4a6cf7";
-      this.userBadge.style.background = "rgba(74, 108, 247, 0.15)";
-    }
+    var s = await API.getSession();
+    this.userBadge.textContent = s.group || "visitor";
+    this.userBadge.style.color = s.loggedIn ? "#34d399" : "#4a6cf7";
     var w = document.getElementById("welcome-user");
-    if (w) w.textContent = session.loggedIn ? session.username : "visitor";
+    if (w) w.textContent = s.loggedIn ? s.username : "visitor";
   },
 
   focus() { this.input.focus(); },
-
-  setEnabled(enabled) {
-    this.enabled = enabled;
-    if (!enabled) this.input.blur();
-  },
+  setEnabled(v) { this.enabled = v; if (!v) this.input.blur(); }
 };

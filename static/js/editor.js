@@ -1,91 +1,106 @@
 /**
- * Editor Controller
- * Handles code editor (source only, no preview)
+ * Veterm v2.0 — Admin Editor
+ * Full-screen overlay, Ctrl+Shift+E, admin only.
+ * File tree sidebar + textarea editor.
+ * Ctrl+S → save to DB + encrypted cache.
  */
 const Editor = {
-  /** @type {HTMLTextAreaElement} */
   textarea: null,
-  /** @type {HTMLSpanElement} */
   filename: null,
-  /** @type {string} */
+  overlay: null,
+  fileTree: null,
   currentFile: "",
-  /** @type {boolean} */
   editMode: false,
-  /** @type {boolean} */
   dirty: false,
 
   init() {
     this.textarea = document.getElementById("code-editor");
     this.filename = document.getElementById("editor-filename");
+    this.overlay = document.getElementById("editor-overlay");
+    this.fileTree = document.getElementById("editor-file-tree");
 
-    // Ctrl+S to save
+    // Ctrl+S save
+    var self = this;
     this.textarea.addEventListener("keydown", function(e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        Editor.saveCurrentFile();
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); self.saveCurrentFile(); }
+      if (e.key === "Escape") { if (self.dirty && !confirm("Unsaved changes. Close anyway?")) { e.preventDefault(); return; } App.closeEditor(); }
     });
 
-    // Track dirty state
-    this.textarea.addEventListener("input", function() {
-      Editor.dirty = true;
+    this.textarea.addEventListener("input", function() { self.dirty = true; });
+
+    // Close button
+    document.getElementById("editor-close-btn").addEventListener("click", () => {
+      if (this.dirty && !confirm("Unsaved changes. Close anyway?")) return;
+      App.closeEditor();
     });
   },
 
-  /**
-   * Open a file for editing
-   * @param {string} filePath
-   * @param {string} content
-   */
-  openFile(filePath, content) {
+  async refreshFileTree() {
+    if (!this.fileTree) return;
+    try {
+      var result = await API.execCommand("ls");
+      var allFiles = this._parseFileList(result.output || "");
+      if (allFiles.length === 0) { this.fileTree.innerHTML = "<div class='file-tree-item muted'>(empty)</div>"; return; }
+
+      var html = "";
+      for (var i = 0; i < allFiles.length; i++) {
+        var f = allFiles[i];
+        var cls = f === this.currentFile ? "file-tree-item active" : "file-tree-item";
+        html += "<div class='" + cls + "' data-file='" + this._escAttr(f) + "'>" + this._escHtml(f) + "</div>";
+      }
+      this.fileTree.innerHTML = html;
+
+      // Click to load
+      var items = this.fileTree.querySelectorAll(".file-tree-item");
+      var self = this;
+      for (var j = 0; j < items.length; j++) {
+        items[j].addEventListener("click", function() {
+          var file = this.getAttribute("data-file");
+          if (file) self.openFile(file);
+        });
+      }
+    } catch (e) { this.fileTree.innerHTML = "<div class='file-tree-item muted'>Error loading</div>"; }
+  },
+
+  _parseFileList(output) {
+    var lines = output.split("\n"), files = [];
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line || line === "(empty directory)") continue;
+      var name = line.replace(/^\s+/, "").replace(/\/$/, "");
+      if (name) files.push(name);
+    }
+    return files;
+  },
+
+  async openFile(filePath) {
     this.currentFile = filePath;
     this.editMode = true;
     this.dirty = false;
-    this.textarea.value = content || "";
-    this.filename.textContent = filePath;
-    this.textarea.removeAttribute("readonly");
-    this.textarea.focus();
-  },
 
-  /**
-   * Show file content (read-only source view from cat)
-   * @param {string} source
-   * @param {string} html
-   * @param {string} filePath
-   * @param {boolean} editable
-   */
-  showFileContent(source, html, filePath, editable) {
-    this.currentFile = filePath || "";
-    this.editMode = editable;
-    this.dirty = false;
-
-    if (editable) {
-      this.textarea.value = source || "";
-      this.filename.textContent = filePath || "";
+    // Load content from server
+    var result = await API.renderFile(filePath);
+    if (!result.error) {
+      this.textarea.value = result.content || "";
+      this.filename.textContent = filePath;
       this.textarea.removeAttribute("readonly");
-    } else {
-      this.textarea.value = source || "";
-      this.filename.textContent = filePath ? filePath + " (read-only)" : "(read-only)";
-      this.textarea.setAttribute("readonly", "true");
+      this.textarea.focus();
+      this.refreshFileTree();
     }
   },
 
-  /**
-   * Save the current file to server
-   */
   async saveCurrentFile() {
     if (!this.currentFile || !this.editMode) return;
-
     var content = this.textarea.value;
     var result = await API.saveFile(this.currentFile, content);
-
     if (result.success) {
       this.dirty = false;
-      Terminal.printLine("Saved: " + this.currentFile, "output-line");
-      Terminal.output.scrollTop = Terminal.output.scrollHeight;
+      // Update encrypted cache
+      var render = await API.renderFile(this.currentFile);
+      if (!render.error) await Cache.set(this.currentFile, render.html);
+      Toast.show("Saved: " + this.currentFile, 1500);
     } else {
-      Terminal.printLine("Error saving: " + (result.error || "Unknown error"), "output-line error");
-      Terminal.output.scrollTop = Terminal.output.scrollHeight;
+      Toast.show("Error: " + (result.error || "Unknown error"), 3000);
     }
   },
 
@@ -97,4 +112,7 @@ const Editor = {
     this.textarea.removeAttribute("readonly");
     this.filename.textContent = "";
   },
+
+  _escHtml: function(s) { return s.replace(/\x26/g, "\x26amp;").replace(/</g, "\x26lt;").replace(/>/g, "\x26gt;"); },
+  _escAttr: function(s) { return s.replace(/\x26/g, "\x26amp;").replace(/"/g, "\x26quot;"); }
 };

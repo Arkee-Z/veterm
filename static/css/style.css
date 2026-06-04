@@ -109,37 +109,19 @@ body {
   height: 100vh;
 }
 
-#main-content {
+.viewer-panel {
   flex: 1;
-  position: relative;
-  overflow: auto;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-}
-
-/* --- Panel Visibility --- */
-.panel {
-  width: 100%;
-  min-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.panel.hidden {
-  display: none;
+  padding: 48px 40px;
 }
 
 /* ============================================
    VIEWER MODE — Card Display
    ============================================ */
-.viewer-panel {
-  padding: 48px 40px;
-}
-
 .card-container {
   max-width: 680px;
   width: 100%;
@@ -330,18 +312,91 @@ body {
 }
 
 /* ============================================
-   EDITOR MODE — Single Panel
+   TERMINAL OVERLAY — Floating popup
    ============================================ */
-.editor-panel {
-  padding: 0 !important;
+.terminal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.terminal-overlay.hidden { display: none; }
+
+.terminal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.terminal-overlay .terminal-panel {
+  position: relative;
+  background: var(--bg-terminal);
+  border-top: 1px solid var(--accent);
+  height: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: terminalSlideIn 0.15s ease-out;
+  z-index: 1;
+}
+
+/* ============================================
+   EDITOR OVERLAY — Full-screen admin editor
+   ============================================ */
+.editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  background: var(--bg);
+}
+
+.editor-overlay.hidden { display: none; }
+
+.editor-sidebar {
+  width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.editor-sidebar-header {
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   border-bottom: 1px solid var(--border);
 }
 
-.editor-single {
+.editor-file-tree { flex: 1; padding: 4px 0; overflow-y: auto; }
+
+.file-tree-item {
+  padding: 6px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.file-tree-item:hover { background: var(--surface-hover); color: var(--text-primary); }
+.file-tree-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 600; }
+.file-tree-item.muted { color: var(--text-muted); cursor: default; }
+
+.editor-main {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
+  min-width: 0;
 }
 
 .editor-header {
@@ -350,18 +405,23 @@ body {
   justify-content: space-between;
   padding: 10px 16px;
   background: var(--surface);
-  color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 0.72rem;
+  color: var(--text-secondary);
   font-weight: 600;
   flex-shrink: 0;
-  letter-spacing: 0.03em;
 }
 
-.editor-header span:first-child {
-  color: var(--text-primary);
-  font-weight: 600;
+.editor-header-actions { display: flex; align-items: center; gap: 12px; }
+
+.editor-session-badge {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
 }
 
 .editor-hint {
@@ -370,7 +430,18 @@ body {
   opacity: 0.8;
 }
 
-/* --- Code Editor (full-width, no preview) --- */
+.editor-close-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+.editor-close-btn:hover { color: var(--accent); border-color: var(--accent); }
+
 .code-editor {
   flex: 1;
   background: var(--bg-editor);
@@ -389,13 +460,33 @@ body {
 }
 
 .code-editor::placeholder { color: var(--text-muted); }
-
-.code-editor:focus {
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
+.code-editor:focus { box-shadow: inset 0 0 0 1px var(--accent); }
 
 /* ============================================
-   TERMINAL PANEL —学术莫兰迪终端
+   TOAST
+   ============================================ */
+.toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.toast.show { opacity: 1; }
+.toast.hidden { display: none; }
+
+/* ============================================
+   TERMINAL PANEL LEGACY — kept for internal use
    ============================================ */
 .terminal-panel {
   position: relative;

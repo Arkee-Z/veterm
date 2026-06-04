@@ -1,191 +1,166 @@
 /**
- * Main Application Controller
- * Handles mode switching (viewer/editor), terminal toggle, and initialization
+ * Veterm v2.0 — Application Controller
+ * - Viewer: always visible, hash-routed
+ * - Terminal: floating overlay, Ctrl+Shift+P
+ * - Editor: full-screen overlay, Ctrl+Shift+E (admin only)
  */
 const App = {
-  /** @type {HTMLDivElement} */
   app: null,
-  /** @type {HTMLDivElement} */
   viewerPanel: null,
-  /** @type {HTMLDivElement} */
-  editorPanel: null,
-  /** @type {HTMLDivElement} */
-  terminalPanel: null,
-  /** @type {HTMLSpanElement} */
+  renderedContent: null,
+  terminalOverlay: null,
+  editorOverlay: null,
   statusMode: null,
-  /** @type {boolean} */
   terminalVisible: false,
-  /** @type {boolean} */
-  isEditorMode: false,
-  /** @type {string|null} */
-  lastViewedHtml: null,
-  /** @type {string|null} */
-  lastViewedFile: null,
-  /** @type {string|null} */
-  currentProject: null,
+  editorVisible: false,
+  lastFile: null,
 
   init() {
     this.app = document.getElementById("app");
     this.viewerPanel = document.getElementById("viewer-panel");
-    this.editorPanel = document.getElementById("editor-panel");
-    this.terminalPanel = document.getElementById("terminal-panel");
+    this.renderedContent = document.getElementById("rendered-content");
+    this.terminalOverlay = document.getElementById("terminal-overlay");
+    this.editorOverlay = document.getElementById("editor-overlay");
     this.statusMode = document.getElementById("status-mode");
 
-    // Restore theme from localStorage
-    var saved = localStorage.getItem("veta-theme") || "dark";
+    var saved = localStorage.getItem("veterm-theme") || "dark";
     this.setTheme(saved);
 
-    // Initialize sub-modules
     Terminal.init();
     Editor.init();
+    Toast.init();
 
-    // Disable right-click globally
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
+    // Right-click disabled with toast
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      Toast.show("Right-click disabled — Use the terminal for all actions");
+    });
 
-    // Global keyboard shortcuts
+    // Global keyboard
     document.addEventListener("keydown", (e) => this.handleGlobalKeydown(e));
 
-    // Restore from hash, or load default
-    var hash = window.location.hash.slice(1); // remove leading #
-    if (hash.startsWith("project:")) {
-      var projName = hash.slice(8); // "project:" length = 8
-      this.restoreProject(projName);
-    } else if (hash) {
-      this.restoreFile(hash);
-    } else {
-      this.loadDefaultContent();
-    }
+    // Hash change listener for browser back/forward
+    window.addEventListener("hashchange", () => this.handleHashChange());
 
-    // Initial user badge refresh
+    // Initial route
+    this.handleHashChange();
+
     Terminal.refreshUserBadge();
   },
 
   setTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("veta-theme", theme);
+    localStorage.setItem("veterm-theme", theme);
   },
 
-  async loadDefaultContent() {
-    const result = await API.renderFile("about.md");
+  handleHashChange() {
+    var hash = window.location.hash.slice(1);
+    if (!hash) {
+      this.navigate("about.md");
+    } else if (hash.startsWith("project:")) {
+      this.navigateProject(hash.slice(8));
+    } else {
+      this.navigate(hash);
+    }
+  },
+
+  async navigate(filePath) {
+    this.lastFile = filePath;
+    // Try cache first
+    var cached = await Cache.get(filePath);
+    if (cached) {
+      this.renderedContent.innerHTML = cached;
+      return;
+    }
+    // Fetch from server
+    var result = await API.renderFile(filePath);
     if (!result.error) {
-      this.viewerPanel.querySelector("#rendered-content").innerHTML = result.html;
+      this.renderedContent.innerHTML = result.html;
+      await Cache.set(filePath, result.html);
+    }
+  },
+
+  async navigateProject(name) {
+    var cached = await Cache.get("project:" + name);
+    if (cached) {
+      this.renderedContent.innerHTML = cached;
+      return;
+    }
+    var result = await API.execCommand("goto " + name);
+    if (result.action === "render_project" && result.html) {
+      this.renderedContent.innerHTML = result.html;
+      await Cache.set("project:" + name, result.html);
     }
   },
 
   handleGlobalKeydown(e) {
-    // Ctrl+Shift+P — toggle terminal (avoids browser DevTools conflict)
+    // Ctrl+Shift+P — toggle terminal
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "P" || e.key === "p")) {
       e.preventDefault();
-      if (this.terminalVisible) {
+      this.toggleTerminal();
+      return;
+    }
+    // Ctrl+Shift+E — toggle editor (admin only)
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "E" || e.key === "e")) {
+      e.preventDefault();
+      this.toggleEditor();
+      return;
+    }
+    // Escape — close terminal or editor
+    if (e.key === "Escape") {
+      if (this.terminalVisible && document.activeElement !== Terminal.input) {
         this.closeTerminal();
-      } else {
-        this.openTerminal();
+      } else if (this.editorVisible) {
+        if (Editor.dirty) {
+          if (!confirm("Unsaved changes. Close anyway?")) return;
+        }
+        this.closeEditor();
       }
       return;
     }
+  },
 
-    // Escape — close terminal
-    if (e.key === "Escape" && this.terminalVisible) {
-      // Only handle if not in input field (terminal handles its own Esc)
-      if (document.activeElement !== Terminal.input) {
-        e.preventDefault();
-        this.closeTerminal();
-      }
-      return;
-    }
+  toggleTerminal() {
+    this.terminalVisible ? this.closeTerminal() : this.openTerminal();
   },
 
   openTerminal() {
     this.terminalVisible = true;
-    this.terminalPanel.classList.remove("hidden");
-    this.statusMode.textContent = "Editor";
-
-    // Switch to editor mode
-    this.isEditorMode = true;
-    this.app.classList.remove("viewer-mode");
-    this.app.classList.add("editor-mode");
-
-    // Show editor panel
-    this.viewerPanel.classList.add("hidden");
-    this.editorPanel.classList.remove("hidden");
-
-    // If no file is open in editor, show about.md
-    if (!Editor.currentFile) {
-      API.renderFile("about.md").then((result) => {
-        if (!result.error) {
-          Editor.showFileContent(result.content, result.html, "about.md", false);
-        }
-      });
-    }
-
-    // Focus terminal
+    this.terminalOverlay.classList.remove("hidden");
     setTimeout(() => Terminal.focus(), 150);
   },
 
   closeTerminal() {
-    // Check for unsaved changes
-    if (Editor.dirty && Editor.editMode) {
-      if (!confirm("You have unsaved changes. Close terminal anyway?")) {
-        return;
-      }
-    }
-
     this.terminalVisible = false;
-    this.terminalPanel.classList.add("hidden");
-    this.statusMode.textContent = "Viewer";
+    this.terminalOverlay.classList.add("hidden");
+  },
 
-    // Switch to viewer mode
-    this.isEditorMode = false;
-    this.app.classList.remove("editor-mode");
-    this.app.classList.add("viewer-mode");
+  toggleEditor() {
+    this.editorVisible ? this.closeEditor() : this.openEditor();
+  },
 
-    // Show viewer, hide editor
-    this.editorPanel.classList.add("hidden");
-    this.viewerPanel.classList.remove("hidden");
-
-    // Reset editor state
-    Editor.reset();
-
-    // Restore last viewed content from cat command, or fallback to about.md
-    var viewer = document.getElementById("rendered-content");
-    if (this.lastViewedHtml) {
-      viewer.innerHTML = this.lastViewedHtml;
-    } else {
-      this.loadDefaultContent();
+  async openEditor() {
+    // Check admin session
+    var session = await API.getSession();
+    if (!session.loggedIn || session.group !== "admin") {
+      Toast.show("Editor requires admin login. Use 'login admin <password>' in terminal.");
+      return;
     }
+    this.editorVisible = true;
+    this.editorOverlay.classList.remove("hidden");
+    Editor.refreshFileTree();
   },
 
-  async restoreFile(filePath) {
-    var result = await API.renderFile(filePath);
-    if (!result.error) {
-      this.viewerPanel.querySelector("#rendered-content").innerHTML = result.html;
-      this.lastViewedHtml = result.html;
-      this.lastViewedFile = filePath;
-      this.currentProject = null;
-    }
+  closeEditor() {
+    this.editorVisible = false;
+    this.editorOverlay.classList.add("hidden");
   },
 
-  async restoreProject(projName) {
-    var result = await API.execCommand("goto " + projName);
-    if (result.action === "render_project" && result.html) {
-      this.viewerPanel.querySelector("#rendered-content").innerHTML = result.html;
-      this.lastViewedHtml = result.html;
-      this.lastViewedFile = "projects/" + projName + "/index.html";
-      this.currentProject = projName;
-    }
-  },
-
-  switchToEditor(editable) {
-    this.viewerPanel.classList.add("hidden");
-    this.editorPanel.classList.remove("hidden");
-    this.isEditorMode = true;
-    this.statusMode.textContent = "Editor";
-    this.app.classList.remove("viewer-mode");
-    this.app.classList.add("editor-mode");
-  },
+  // Called by terminal after cat/goto to update viewer and cache
+  async onContentRendered(filePath, html) {
+    this.renderedContent.innerHTML = html;
+    await Cache.set(filePath, html);
+  }
 };
 
-// Bootstrap when DOM is ready
-document.addEventListener("DOMContentLoaded", () => {
-  App.init();
-});
+document.addEventListener("DOMContentLoaded", () => App.init());

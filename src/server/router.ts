@@ -32,11 +32,20 @@ async function serveStatic(pathname: string): Promise<Response> {
     return new Response(file, { headers: { "Content-Type": MIME[ext] || "application/octet-stream" } });
   } catch (err) {
     if (err instanceof Deno.errors.NotFound) {
+      // Return styled 404 page, fallback to plain text
       try {
-        const file = await Deno.readFile("./static/index.html");
-        return new Response(file, { headers: { "Content-Type": "text/html; charset=utf-8" } });
-      } catch { return new Response("404 Not Found", { status: 404 }); }
+        const file = await Deno.readFile("./static/404.html");
+        return new Response(file, { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } });
+      } catch {
+        return new Response("404 Not Found", { status: 404 });
+      }
     }
-    return new Response("500 Internal Server Error", { status: 500 });
+    // Return styled 500 page
+    try {
+      const file = await Deno.readFile("./static/500.html");
+      return new Response(file, { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } });
+    } catch {
+      return new Response("500 Internal Server Error", { status: 500 });
+    }
   }
 }

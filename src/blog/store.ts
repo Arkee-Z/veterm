@@ -156,7 +156,7 @@ function isAllowedPath(filePath: string): boolean {
     return false;
   }
   const ext = filePath.split(".").pop()?.toLowerCase();
-  return ext === "md" || ext === "txt" || ext === "json";
+  return ext === "md" || ext === "txt" || ext === "json" || ext === "html";
 }
 
 export function getContentRoot(): string {

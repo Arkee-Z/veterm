@@ -1,46 +1,46 @@
 # Hello, Terminal
 
-> Press Ctrl+Shift+P to unlock the command pane.
+> Press Ctrl+Shift+P to open the command pane.
 
 ---
 
-Welcome to **Veta** — a blog that treats the browser like a terminal emulator. This isn't your average static site. Everything you see here — every post, every project page, every theme toggle — happens through a command-line interface hidden behind a keyboard shortcut.
+Welcome to **Veterm** — a blog that treats the browser like a terminal emulator. This isn't your average static site. Everything you see here — every post, every project page, every theme toggle — happens through a floating command-line overlay triggered by a keyboard shortcut.
 
-### How It Works
+### How It Works (v2.0)
 
-Think of Veta as a tiny operating system for your blog:
+Three independent panels, zero clutter:
 
-- **The View** — Clean, academic-style cards with monospace typography. No distractions.
-- **The Editor** — Raw Markdown, Ctrl+S to save. What you type is what you get.
-- **The Terminal** — `ls`, `cat`, `edit`, `mount`, `goto` — familiar shell commands that manipulate real files backed by SQLite.
+- **The View** — Academic-style cards with monospace typography. Always visible. Hash-routed so browser back/forward works.
+- **The Editor** — Ctrl+Shift+E. Admin-only fullscreen workspace with a file tree sidebar. Ctrl+S writes to SQLite and refreshes the encrypted local cache.
+- **The Terminal** — Ctrl+Shift+P. Floating overlay. `cat`, `ls`, `goto`, `mount`, `theme` — familiar shell commands that read directly from the database.
 
 ### Your First Commands
 
-Try these in the terminal (Ctrl+Shift+P):
+Try these in the terminal:
 
 ```bash
-cat about.md          # View the about page
+cat about.md          # See who built this
 cat hello-world       # You're reading this now
 ls posts/             # List all blog posts
-goto home             # Always returns you to the homepage
+goto home             # Return to the homepage
+theme                 # Switch to light mode
 ```
 
 ### Why Build This?
 
-Because GUIs are overrated. A well-designed CLI is faster, keyboard-driven, and forces you to think about your content rather than how it looks. Every design decision in Veta — from the font stack to the double-rule blockquote — was made deliberately to serve the reading experience.
+Because GUIs are overrated. A well-designed CLI is faster, keyboard-driven, and forces you to think about your content rather than how it looks. Veterm eliminates the distinction between authoring and browsing — they happen in the same interface, through the same muscle memory.
 
 ### What's Next
 
-I'll be writing about:
+- **Deno runtime internals** — how this very server runs
+- **SQLite as a CMS** — database-first content management
+- **Terminal UX patterns** — autocomplete, history, signal handling
+- **Project sandboxes** — how `mount` + `goto` create sub-sites
+- **Encrypted caching** — AES-GCM localStorage under the hood
 
-1. **Deno runtime internals** — how this very server runs
-2. **SQLite as a CMS** — database-first content management
-3. **Terminal UX patterns** — keyboard shortcuts, autocomplete, command history
-4. **Building project sandboxes** — how `mount` + `goto` create virtual sub-sites
+### Open Source
 
-### Join In
-
-This blog is open source. Visit `goto github` to fork it, deploy your own instance, or contribute commands you'd like to see.
+This blog is open source. `goto github` to fork it, deploy your own instance, or contribute the commands you want to see.
 
 ---
 

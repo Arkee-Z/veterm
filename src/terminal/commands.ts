@@ -75,7 +75,7 @@ export function getHelpText(): string {
     lines.push("");
   }
   lines.push("Default credentials:");
-  lines.push("  admin / (set VETA_ADMIN_PASSWORD env var)");
+  lines.push("  admin / (set VETERM_ADMIN_PASSWORD env var)");
   lines.push("  guest / guest");
   return lines.join("\n").trim();
 }
@@ -144,7 +144,7 @@ async function handleCat(args: string[], _ctx: CommandContext): Promise<CommandR
   const filePath = await resolveFilePath(args[0]);
   try {
     const content = await store.readFile(filePath);
-    return { output: content, html: renderMarkdown(content), source: content, filePath, action: "render" };
+    return { output: "", html: renderMarkdown(content), filePath, action: "render" };
   } catch (err) {
     return { output: `Error: ${(err as Error).message}` };
   }
@@ -299,7 +299,7 @@ async function handleGoto(args: string[], _ctx: CommandContext): Promise<Command
       return { output: row.content, html: row.content, filePath: htmlPath, action: "render_project" };
     }
 
-    return { output: row.content, html: renderMarkdown(row.content), source: row.content, filePath: mdPath, action: "render" };
+    return { output: "", html: renderMarkdown(row.content), filePath: mdPath, action: "render" };
   } catch {
     return { output: `Project not found: ${name}. Use 'mount ${name}' to create it.` };
   }

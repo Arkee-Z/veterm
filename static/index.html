@@ -3,60 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blog — Terminal-controlled Blog</title>
+  <title>Veterm — Terminal Blog Engine</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c0392b' stroke-width='1.5'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
 </head>
 <body>
-  <!-- CRT scanline overlay -->
-  <div id="crt-overlay" class="crt-overlay"></div>
-
-  <!-- Mode-specific containers -->
-  <div id="app" class="app viewer-mode">
-    <!-- MAIN CONTENT AREA -->
-    <main id="main-content">
-      <!-- Viewer: rendered markdown card -->
-      <div id="viewer-panel" class="panel viewer-panel">
-        <div id="rendered-content" class="rendered-content card-container">
-          <!-- Dynamic content injected here -->
-        </div>
-      </div>
-
-      <!-- Editor: source code only (no preview) -->
-      <div id="editor-panel" class="panel editor-panel hidden">
-        <div class="editor-single">
-          <div class="editor-header">
-            <span id="editor-filename">about.md</span>
-            <span class="editor-hint">Ctrl+S to save</span>
-          </div>
-          <textarea id="code-editor" class="code-editor" spellcheck="false" placeholder="Write your markdown here..."></textarea>
-        </div>
-      </div>
-
-      <!-- Status bar (hidden below fold, scroll to see) -->
-      <div id="status-bar" class="status-bar below-fold">
-        <span>Ctrl+Shift+P — Toggle Terminal</span>
-        <span id="status-mode" class="status-mode">Viewer</span>
+  <div id="app" class="app">
+    <!-- VIEWER — always visible, hash-routed -->
+    <main id="viewer-panel" class="viewer-panel">
+      <div id="rendered-content" class="rendered-content card-container">
+        <!-- Dynamic content injected here -->
       </div>
     </main>
 
-    <!-- TERMINAL PANEL (hidden by default) -->
-    <footer id="terminal-panel" class="terminal-panel hidden">
+    <!-- ADMIN EDITOR — Ctrl+Shift+E, overlay -->
+    <div id="editor-overlay" class="editor-overlay hidden">
+      <div class="editor-sidebar" id="editor-sidebar">
+        <div class="editor-sidebar-header">Files</div>
+        <div id="editor-file-tree" class="editor-file-tree"></div>
+      </div>
+      <div class="editor-main">
+        <div class="editor-header">
+          <span id="editor-filename">about.md</span>
+          <div class="editor-header-actions">
+            <span id="editor-session-badge" class="editor-session-badge">admin</span>
+            <span class="editor-hint">Ctrl+S to save · Esc to close</span>
+            <button id="editor-close-btn" class="editor-close-btn" title="Close editor (Esc)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <textarea id="code-editor" class="code-editor" spellcheck="false" placeholder="Write your markdown here..."></textarea>
+      </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div id="status-bar" class="status-bar">
+      <span>Ctrl+Shift+P — Terminal · Ctrl+Shift+E — Editor</span>
+      <span id="status-mode" class="status-mode">Veterm</span>
+    </div>
+  </div>
+
+  <!-- FLOATING TERMINAL — position: fixed overlay -->
+  <div id="terminal-overlay" class="terminal-overlay hidden">
+    <div class="terminal-backdrop" id="terminal-backdrop"></div>
+    <div class="terminal-panel" id="terminal-panel">
       <div class="terminal-resize-handle" id="terminal-resize-handle"></div>
       <div class="terminal-header">
-        <span class="terminal-title">Terminal</span>
+        <span class="terminal-title">Veterm Terminal</span>
         <div class="terminal-actions">
           <span id="terminal-user-badge" class="terminal-user-badge">visitor</span>
-<button id="terminal-close-btn" class="terminal-close-btn" title="Close terminal (Esc)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          <button id="terminal-close-btn" class="terminal-close-btn" title="Close (Esc)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       </div>
       <div id="terminal-output" class="terminal-output">
         <div class="terminal-welcome">
           <pre>
- ___ ___ _______ _______ _______ 
-|   |   |    ___|_     _|   _   |
-|   |   |    ___| |   | |       |
- \_____/|_______| |___| |___|___|                          
+ __     __  _______  ______   _______  _______  __   __
+|  |   |  ||       ||    _ | |       ||       ||  |_|  |
+|  |   |  ||    ___||   | || |_     _||    ___||       |
+|  |   |  ||   |___ |   |_||_  |   |  |   |___ |       |
+|  |___|  ||    ___||    __  | |   |  |    ___||       |
+|        ||   |___ |   |  | | |   |  |   |___ | ||_|| |
+|________||_______||___|  |_| |___|  |_______||_|   |_|
           </pre>
           <p>Logged in as: <strong id="welcome-user">visitor</strong></p>
         </div>
@@ -65,10 +76,15 @@
         <span class="terminal-prompt">$</span>
         <input type="text" id="terminal-input" class="terminal-input" autofocus placeholder="Type a command...">
       </div>
-    </footer>
+    </div>
   </div>
 
+  <!-- TOAST -->
+  <div id="toast" class="toast hidden"></div>
+
   <script src="/js/api.js"></script>
+  <script src="/js/cache.js"></script>
+  <script src="/js/toast.js"></script>
   <script src="/js/terminal.js"></script>
   <script src="/js/editor.js"></script>
   <script src="/js/app.js"></script>

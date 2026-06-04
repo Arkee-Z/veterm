@@ -1,14 +1,14 @@
-# Veta Blog — Terminal-Controlled Blog Engine
+# Veterm — Terminal Blog Engine
 
-A modern, minimal, single-binary blog engine powered by **Deno** and an embedded **terminal** interface. Everything is accessed through a command-line — reading posts, editing files, navigating projects, all from a beautiful academic-style viewer.
+A modern, database-backed blog engine driven entirely through a **floating terminal overlay** powered by **Deno**. Browse posts, edit content, mount project sandboxes, and manage an encrypted local cache — all from the command-line.
 
 ## Features
 
-| 🖥️ Terminal Commands | 📝 Built-in Editor | 🎨 Dual Theme |
+| 🖥️ Terminal | 📝 Admin Editor | 🔐 Caching & Security |
 |---|---|---|
-| `ls` `cat` `edit` `touch` `mkdir` `mount` `goto` `rm` `rmdir` | Full Markdown editor with Ctrl+S save | Dark (midnight study) / Light (daytime paper) |
-| `cin` `cout` `sync` — import/export/sync with SQLite | Read-only source preview mode | Monospace CJK font stack (Sarasa Mono) |
-| `login` `whoami` `help` `theme` `clear` `exit` | Syntax-aware tab completion for files, dirs, commands | Keyboard-only navigation |
+| 19 registered commands — `cat` `ls` `goto` `mount` `theme` | Ctrl+Shift+E — file tree + textarea | AES-GCM encrypted localStorage cache |
+| Tab autocomplete (command + file-aware) | Ctrl+S → SQLite + cache refresh | PBKDF2 100k SHA-256 hashing |
+| `mount`/`goto` — HTML projects & external links | Hash routing (#post/hello-world) | HTTP-only sessions + rate-limiting |
 
 ### Architecture
 
@@ -34,10 +34,10 @@ main.ts → bootstrap.ts
 
 ```bash
 # 1. Clone
-git clone https://github.com/Arkee-Z/veta.git && cd veta
+git clone https://github.com/Arkee-Z/veterm.git && cd veterm
 
 # 2. Set admin password
-echo 'VETA_ADMIN_PASSWORD=yourpassword' > .env
+echo 'VETERM_ADMIN_PASSWORD=yourpassword' > .env
 
 # 3. Run
 deno task dev        # development (hot-reload)
@@ -47,7 +47,7 @@ deno task start      # production
 open http://localhost:8000
 ```
 
-Press **Ctrl+Shift+P** to open the terminal. Login as `admin` for write access:
+**Ctrl+Shift+P** → floating terminal · **Ctrl+Shift+E** → admin editor · Login:
 
 ```
 login admin yourpassword
@@ -83,10 +83,10 @@ login admin yourpassword
 
 ```bash
 # Deno Deploy (one-click)
-push to GitHub → dash.deno.com → New Project → set VETA_ADMIN_PASSWORD env
+Push to GitHub → dash.deno.com → New Project → env `VETERM_ADMIN_PASSWORD`
 
 # VPS (systemd)
-sudo cp veta.service /etc/systemd/system/ && sudo systemctl enable --now veta
+cp veterm.service /etc/systemd/system/ && systemctl enable --now veterm
 ```
 
 ## Tech Stack
@@ -94,7 +94,8 @@ sudo cp veta.service /etc/systemd/system/ && sudo systemctl enable --now veta
 - **Runtime**: Deno
 - **Database**: SQLite (`@db/sqlite`)
 - **Frontend**: Vanilla JS + CSS (zero framework)
-- **Icons**: Inline SVG (Lucide-style)
+- **Cache**: Web Crypto AES-GCM encrypted localStorage
+- **Icons**: Inline SVG
 - **Fonts**: Sarasa Mono SC, LXGW WenKai Mono
 
 ## License
