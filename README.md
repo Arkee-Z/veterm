@@ -10,7 +10,7 @@ A modern, database-backed notebook rebuilt on **Node.js**: an editorial reading 
 | Terminal completion + history + resize | Ctrl+S / Save button · dirty indicator | PBKDF2 100k SHA-256 hashing |
 | `mount` / `goto` — HTML projects, markdown projects & links | Front-matter metadata, TOC, reading time, related posts | HTTP-only sessions + login/API rate limiting |
 
-The viewer is always visible. The terminal docks above the status bar without taking over the page; the editor opens as a focused full-screen workspace.
+The viewer is always visible. The terminal docks above the status bar without taking over the page; the editor opens as a focused full-screen workspace. Navigation uses the History API, so public URLs are clean (`/posts/hello-world`, not `/#/posts/hello-world`).
 
 ## Layout & Routes
 
@@ -31,16 +31,17 @@ The viewer is always visible. The terminal docks above the status bar without ta
 
 | Route | Result |
 |---|---|
-| `#/` | Home — hero, featured note, latest writing |
-| `#/archive` | Archive grouped by year |
-| `#/archive/<tag>` | Archive filtered by tag |
-| `#/tags` | Tag index |
-| `#/projects` | Project cards |
-| `#/projects/github` | HTML project / link project / project markdown |
-| `#/posts/<slug>` | Article with metadata, TOC, related notes |
-| `#/about` | About page |
-| `#/post/<slug>` | Legacy short alias |
-| `#project:github` | Legacy project alias |
+| `/` | Home — hero, featured note, latest writing |
+| `/archive` | Archive grouped by year |
+| `/archive/<tag>` | Archive filtered by tag |
+| `/tags` | Tag index |
+| `/projects` | Project cards |
+| `/projects/github` | HTML project / link project / project markdown |
+| `/posts/<slug>` | Article with metadata, TOC, related notes |
+| `/about` | About page |
+| `/post/<slug>` | Legacy short alias |
+
+Old `#/...` bookmarks redirect to the clean path on load. The server falls back to `index.html` for application routes, so refreshing a deep link works.
 
 Also generated: `/rss.xml`, `/sitemap.xml`, `/robots.txt`.
 
@@ -115,7 +116,7 @@ Open **http://localhost:8000**.
 `main.js` loads `.env` automatically when it exists, so `node main.js` works the same way as the npm scripts.
 
 ```bash
-npm test        # renderer + path-safety tests
+npm test        # renderer, path-safety and routing tests
 npm run check   # node --check every JavaScript file
 ```
 

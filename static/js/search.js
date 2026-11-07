@@ -126,7 +126,7 @@ const Search = {
           excerpt: post.excerpt,
           tags: post.tags,
           route: `posts/${post.slug}`,
-          href: `#/posts/${encodeURIComponent(post.slug)}`,
+          href: `/posts/${encodeURIComponent(post.slug)}`,
         });
       }
       for (const project of index.projects.slice(0, 3)) {
@@ -137,7 +137,7 @@ const Search = {
           excerpt: project.description,
           tags: project.tags,
           route: `projects/${project.name}`,
-          href: `#/projects/${encodeURIComponent(project.name)}`,
+          href: `/projects/${encodeURIComponent(project.name)}`,
         });
       }
       for (const tag of index.tags.slice(0, 4)) {
@@ -148,7 +148,7 @@ const Search = {
           excerpt: "",
           tags: [],
           route: `archive/${tag.name}`,
-          href: `#/archive/${encodeURIComponent(tag.name)}`,
+          href: `/archive/${encodeURIComponent(tag.name)}`,
         });
       }
       return results;
@@ -167,7 +167,7 @@ const Search = {
         excerpt: post.excerpt,
         tags: post.tags,
         route: `posts/${post.slug}`,
-        href: `#/posts/${encodeURIComponent(post.slug)}`,
+        href: `/posts/${encodeURIComponent(post.slug)}`,
         points,
       });
     }
@@ -182,7 +182,7 @@ const Search = {
         excerpt: project.description,
         tags: project.tags,
         route: `projects/${project.name}`,
-        href: `#/projects/${encodeURIComponent(project.name)}`,
+        href: `/projects/${encodeURIComponent(project.name)}`,
         points,
       });
     }
@@ -196,7 +196,7 @@ const Search = {
         excerpt: "",
         tags: [],
         route: `archive/${tag.name}`,
-        href: `#/archive/${encodeURIComponent(tag.name)}`,
+        href: `/archive/${encodeURIComponent(tag.name)}`,
         points,
       });
     }

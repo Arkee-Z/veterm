@@ -119,6 +119,22 @@ function safeStaticPath(pathname) {
     }
     return `/${segments.join("/")}`;
 }
+export function isAppRoute(pathname) {
+    if (!pathname || pathname === "/")
+        return true;
+    const segments = pathname.split("/").filter(Boolean);
+    const first = segments[0] || "";
+    // Static asset directories must 404 rather than returning the app shell.
+    if (["css", "js", "assets", "images", "img", "fonts"].includes(first))
+        return false;
+    // Known client routes win even when the final segment contains a dot
+    // (for example /archive/node.js or /projects/foo/index.html).
+    if (["archive", "tags", "projects", "about", "posts", "post", "p"].includes(first))
+        return true;
+    const last = segments[segments.length - 1] || "";
+    return !last.includes(".");
+}
+
 async function serveStatic(req, pathname) {
     const safePath = safeStaticPath(pathname);
     if (!safePath)
@@ -134,8 +150,11 @@ async function serveStatic(req, pathname) {
             return await errorPage(404);
     }
     catch (err) {
-        if (err.code === "ENOENT")
+        if (err.code === "ENOENT") {
+            if (isAppRoute(safePath))
+                return await serveStatic(req, "/index.html");
             return await errorPage(404);
+        }
         return await errorPage(500);
     }
     const etag = `"${Math.floor(info.mtimeMs)}-${info.size}"`;

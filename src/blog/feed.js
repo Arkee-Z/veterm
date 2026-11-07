@@ -30,7 +30,7 @@ export async function buildRss(origin) {
   const latest = posts[0]?.date || new Date().toISOString().slice(0, 10);
 
   const items = posts.map((post) => {
-    const link = `${base}/#/posts/${encodeURIComponent(post.slug)}`;
+    const link = `${base}/posts/${encodeURIComponent(post.slug)}`;
     return [
       "    <item>",
       `      <title>${escapeXml(post.title)}</title>`,
@@ -65,17 +65,17 @@ export async function buildSitemap(origin) {
 
   const urls = [
     { loc: `${base}/`, lastmod: today, priority: "1.0" },
-    { loc: `${base}/#/archive`, lastmod: index.stats.latestDate || today, priority: "0.9" },
-    { loc: `${base}/#/tags`, lastmod: today, priority: "0.7" },
-    { loc: `${base}/#/projects`, lastmod: today, priority: "0.7" },
-    { loc: `${base}/#/about`, lastmod: today, priority: "0.6" },
+    { loc: `${base}/archive`, lastmod: index.stats.latestDate || today, priority: "0.9" },
+    { loc: `${base}/tags`, lastmod: today, priority: "0.7" },
+    { loc: `${base}/projects`, lastmod: today, priority: "0.7" },
+    { loc: `${base}/about`, lastmod: today, priority: "0.6" },
     ...index.posts.map((post) => ({
-      loc: `${base}/#/posts/${encodeURIComponent(post.slug)}`,
+      loc: `${base}/posts/${encodeURIComponent(post.slug)}`,
       lastmod: post.date || today,
       priority: "0.8",
     })),
     ...index.projects.map((project) => ({
-      loc: `${base}/#/projects/${encodeURIComponent(project.name)}`,
+      loc: `${base}/projects/${encodeURIComponent(project.name)}`,
       lastmod: (project.updatedAt || "").slice(0, 10) || today,
       priority: "0.6",
     })),

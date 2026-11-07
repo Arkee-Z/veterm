@@ -50,7 +50,7 @@ function yearOf(value) {
   return d ? d.year : "Undated";
 }
 function tagHref(tag) {
-  return `#/archive/${encodeURIComponent(tag)}`;
+  return `/archive/${encodeURIComponent(tag)}`;
 }
 function tagNode(tag, count) {
   const link = document.createElement("a");
@@ -140,8 +140,10 @@ const App = {
 
     document.addEventListener("click", (event) => this.handleClick(event));
     document.addEventListener("keydown", (event) => this.handleGlobalKeydown(event));
-    window.addEventListener("hashchange", () => this.scheduleRoute());
     window.addEventListener("popstate", () => this.scheduleRoute());
+    window.addEventListener("hashchange", () => {
+      if (location.hash.startsWith("#/")) this.scheduleRoute();
+    });
     window.addEventListener("resize", () => {
       if (this.terminalOpen) Terminal.measure();
       if (window.innerWidth > 900 && this.sidebarOpen) this.closeSidebar();
@@ -183,28 +185,36 @@ const App = {
   },
 
   // ------------------------------------------------------------------ routing
-  parseRoute(hash = location.hash) {
-    let raw = String(hash || "").replace(/^#/, "");
+  parseRoute(input = location.pathname + location.search) {
+    let raw = String(input || "");
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      try {
+        const url = new URL(raw);
+        raw = url.pathname + url.search;
+      } catch { /* keep */ }
+    }
+    if (raw.startsWith("#")) raw = raw.slice(1);
+    raw = raw.split("#")[0].split("?")[0];
     try { raw = decodeURIComponent(raw); } catch { /* keep */ }
     raw = raw.trim().replace(/^\/+/, "");
     const hadTrailingSlash = /\/+$/.test(raw);
     raw = raw.replace(/\/+$/, "");
 
-    if (!raw || raw === "home" || raw === "index") {
-      return { kind: "home", canonical: "#/" };
+    if (!raw || raw === "home" || raw === "index" || raw === "index.html") {
+      return { kind: "home", canonical: "/" };
     }
     if (raw === "about" || raw === "about.md") {
-      return { kind: "about", path: "about.md", canonical: "#/about" };
+      return { kind: "about", path: "about.md", canonical: "/about" };
     }
     if (raw === "archive" || raw === "posts" || raw === "blog") {
-      return { kind: "archive", tag: "", canonical: "#/archive" };
+      return { kind: "archive", tag: "", canonical: "/archive" };
     }
     if (raw.startsWith("archive/")) {
       const tag = raw.slice("archive/".length).split("/").filter(Boolean);
       return {
         kind: "archive",
         tag: tag[0] || "",
-        canonical: tag[0] ? `#/archive/${encodeURIComponent(tag[0])}` : "#/archive",
+        canonical: tag[0] ? `/archive/${encodeURIComponent(tag[0])}` : "/archive",
       };
     }
     if (raw.startsWith("tags/")) {
@@ -212,58 +222,58 @@ const App = {
       return {
         kind: "archive",
         tag: tag[0] || "",
-        canonical: tag[0] ? `#/archive/${encodeURIComponent(tag[0])}` : "#/archive",
+        canonical: tag[0] ? `/archive/${encodeURIComponent(tag[0])}` : "/archive",
       };
     }
-    if (raw === "tags") return { kind: "tags", canonical: "#/tags" };
-    if (raw === "projects") return { kind: "projects", canonical: "#/projects" };
+    if (raw === "tags") return { kind: "tags", canonical: "/tags" };
+    if (raw === "projects") return { kind: "projects", canonical: "/projects" };
 
     if (raw.startsWith("project:")) {
       const name = raw.slice("project:".length);
-      return { kind: "project", name, canonical: `#/projects/${encodeURIComponent(name)}` };
+      return { kind: "project", name, canonical: `/projects/${encodeURIComponent(name)}` };
     }
     if (raw.startsWith("projects/")) {
       const parts = raw.slice("projects/".length).split("/").filter(Boolean);
       if (parts.length === 1) {
-        return { kind: "project", name: parts[0], canonical: `#/projects/${encodeURIComponent(parts[0])}` };
+        return { kind: "project", name: parts[0], canonical: `/projects/${encodeURIComponent(parts[0])}` };
       }
-      return { kind: "page", path: `projects/${parts.join("/")}`, canonical: `#/${raw}` };
+      return { kind: "page", path: `projects/${parts.join("/")}`, canonical: `/${raw}` };
     }
     if (raw.startsWith("post/")) {
       const slug = raw.slice("post/".length).replace(/\.md$/i, "");
-      return { kind: "post", slug, path: `posts/${slug}.md`, canonical: `#/posts/${encodeURIComponent(slug)}` };
+      return { kind: "post", slug, path: `posts/${slug}.md`, canonical: `/posts/${encodeURIComponent(slug)}` };
     }
     if (raw.startsWith("posts/")) {
       const rest = raw.slice("posts/".length).replace(/\.md$/i, "");
-      if (!rest) return { kind: "archive", tag: "", canonical: "#/archive" };
-      return { kind: "post", slug: rest, path: `posts/${rest}.md`, canonical: `#/posts/${encodeURIComponent(rest)}` };
+      if (!rest) return { kind: "archive", tag: "", canonical: "/archive" };
+      return { kind: "post", slug: rest, path: `posts/${rest}.md`, canonical: `/posts/${encodeURIComponent(rest)}` };
     }
     if (raw.startsWith("p/")) {
       const slug = raw.slice(2);
-      return { kind: "post", slug, path: `posts/${slug}.md`, canonical: `#/posts/${encodeURIComponent(slug)}` };
+      return { kind: "post", slug, path: `posts/${slug}.md`, canonical: `/posts/${encodeURIComponent(slug)}` };
     }
 
     if (hadTrailingSlash) {
-      return { kind: "dir", path: raw, canonical: `#/${raw}` };
+      return { kind: "dir", path: raw, canonical: `/${raw}` };
     }
     if (!raw.includes(".")) {
-      if (this.isDirectory(raw)) return { kind: "dir", path: raw, canonical: `#/${raw}` };
-      return { kind: "post", slug: raw, path: `posts/${raw}.md`, canonical: `#/posts/${encodeURIComponent(raw)}` };
+      if (this.isDirectory(raw)) return { kind: "dir", path: raw, canonical: `/${raw}` };
+      return { kind: "post", slug: raw, path: `posts/${raw}.md`, canonical: `/posts/${encodeURIComponent(raw)}` };
     }
-    return { kind: "page", path: raw, canonical: `#/${raw}` };
+    return { kind: "page", path: raw, canonical: `/${raw}` };
   },
 
   canonicalFor(route) {
     if (route.canonical) return route.canonical;
-    if (route.kind === "home") return "#/";
-    if (route.kind === "about") return "#/about";
-    if (route.kind === "archive") return route.tag ? `#/archive/${encodeURIComponent(route.tag)}` : "#/archive";
-    if (route.kind === "tags") return "#/tags";
-    if (route.kind === "projects") return "#/projects";
-    if (route.kind === "project") return `#/projects/${encodeURIComponent(route.name)}`;
-    if (route.kind === "post") return `#/posts/${encodeURIComponent(route.slug || "")}`;
-    if (route.kind === "dir") return `#/${route.path}`;
-    return `#/${route.path || ""}`;
+    if (route.kind === "home") return "/";
+    if (route.kind === "about") return "/about";
+    if (route.kind === "archive") return route.tag ? `/archive/${encodeURIComponent(route.tag)}` : "/archive";
+    if (route.kind === "tags") return "/tags";
+    if (route.kind === "projects") return "/projects";
+    if (route.kind === "project") return `/projects/${encodeURIComponent(route.name)}`;
+    if (route.kind === "post") return `/posts/${encodeURIComponent(route.slug || "")}`;
+    if (route.kind === "dir") return `/${route.path}`;
+    return `/${route.path || ""}`;
   },
 
   scheduleRoute() {
@@ -275,12 +285,16 @@ const App = {
     clearTimeout(this._routeTimer);
     this.closeSidebar();
     if (typeof Search !== "undefined" && Search.isOpen) Search.close();
+    // Old bookmarks used hash routes: /#/posts/foo -> /posts/foo.
+    if (location.hash.startsWith("#/")) {
+      history.replaceState(null, "", location.hash.slice(1) || "/");
+    }
     let route = this.parseRoute();
 
     if (route.kind === "post" && !route.path) {
       const index = await this.getIndex();
       const post = index && index.posts.find((item) => item.slug === route.slug);
-      if (post) route = { ...route, path: post.path, canonical: `#/posts/${encodeURIComponent(post.slug)}` };
+      if (post) route = { ...route, path: post.path, canonical: `/posts/${encodeURIComponent(post.slug)}` };
     }
 
     if (route.kind === "post") {
@@ -289,9 +303,9 @@ const App = {
         item.path === route.path || item.slug === route.slug
       );
       if (post) {
-        route = { ...route, path: post.path, slug: post.slug, canonical: `#/posts/${encodeURIComponent(post.slug)}` };
+        route = { ...route, path: post.path, slug: post.slug, canonical: `/posts/${encodeURIComponent(post.slug)}` };
       } else if (!route.path) {
-        route = { kind: "page", path: route.slug || "", canonical: `#/${route.slug || ""}` };
+        route = { kind: "page", path: route.slug || "", canonical: `/${route.slug || ""}` };
       }
     }
 
@@ -305,9 +319,8 @@ const App = {
     this.updateBreadcrumb(route);
     this.setActiveNav(route);
     const canonical = this.canonicalFor(route);
-    if (!location.hash || (location.hash !== canonical && location.hash.startsWith("#/"))) {
-      history.replaceState(null, "", canonical);
-    }
+    const currentPath = location.pathname + location.search;
+    if (currentPath !== canonical) history.replaceState(null, "", canonical);
 
     if (route.kind === "home") await this.showHome();
     else if (route.kind === "archive") await this.showArchive(route.tag);
@@ -324,10 +337,11 @@ const App = {
     clearTimeout(this._routeTimer);
     const route = target && target.kind
       ? target
-      : this.parseRoute("#" + String(target || "").replace(/^#/, ""));
-    const hash = this.canonicalFor(route);
-    if (location.hash !== hash) {
-      history[options.replace ? "replaceState" : "pushState"](null, "", hash);
+      : this.parseRoute(String(target || ""));
+    const path = this.canonicalFor(route);
+    const currentPath = location.pathname + location.search;
+    if (currentPath !== path) {
+      history[options.replace ? "replaceState" : "pushState"](null, "", path);
     }
     this.route = route;
     this.updateBreadcrumb(route);
@@ -442,7 +456,7 @@ const App = {
     const lede = el("p", "hero-lede", "I’m Gene Max Zhang — a full-stack engineer building small, deliberate tools. This is a terminal-native notebook about software, typography, and the long way around the web.");
     const actions = el("div", "hero-actions");
     const archiveBtn = el("a", "button primary", "Read the archive");
-    archiveBtn.href = "#/archive";
+    archiveBtn.href = "/archive";
     const terminalBtn = el("button", "button", "Open terminal");
     terminalBtn.type = "button";
     terminalBtn.dataset.action = "terminal";
@@ -467,7 +481,7 @@ const App = {
     for (const [label, href] of [
       ["RSS feed", "/rss.xml"],
       ["GitHub", "https://github.com/Arkee"],
-      ["About", "#/about"],
+      ["About", "/about"],
     ]) {
       const link = el("a", "", label);
       link.href = href;
@@ -488,7 +502,7 @@ const App = {
     if (latest.length) {
       const list = el("div", "post-list");
       for (const post of latest) list.appendChild(this.renderPostRow(post));
-      main.appendChild(this.renderSectionHead("Latest writing", `${latest.length} notes`, "#/archive", list));
+      main.appendChild(this.renderSectionHead("Latest writing", `${latest.length} notes`, "/archive", list));
     }
 
     const nowCard = el("div", "side-card");
@@ -529,7 +543,7 @@ const App = {
     const top = el("div", "featured-top");
     top.append(el("span", "featured-label", "Featured note"), el("span", "featured-number", "01"));
     const link = el("a");
-    link.href = `#/posts/${encodeURIComponent(post.slug)}`;
+    link.href = `/posts/${encodeURIComponent(post.slug)}`;
     link.appendChild(el("h2", "featured-title", post.title));
     if (post.excerpt) link.appendChild(el("p", "featured-excerpt", post.excerpt));
     const meta = el("div", "featured-meta");
@@ -548,7 +562,7 @@ const App = {
     const heading = el("div", "section-title", title);
     heading.appendChild(el("span", "section-count", count));
     const link = el("a", "section-link", "view all →");
-    link.href = href || "#/archive";
+    link.href = href || "/archive";
     head.append(heading, link);
     wrap.appendChild(head);
     wrap.appendChild(content);
@@ -572,7 +586,7 @@ const App = {
     date.append(el("span", "", dateShort(post.date)), el("br"), el("span", "", `${post.readingTime} min`));
     const main = el("div", "post-main");
     const link = el("a", "post-link");
-    link.href = `#/posts/${encodeURIComponent(post.slug)}`;
+    link.href = `/posts/${encodeURIComponent(post.slug)}`;
     link.appendChild(el("h3", "post-title", post.title));
     if (post.excerpt) link.appendChild(el("p", "post-excerpt", post.excerpt));
     main.appendChild(link);
@@ -646,9 +660,9 @@ const App = {
       chips.querySelectorAll(".filter-chip").forEach((item) => item.classList.remove("is-active"));
       chip.classList.add("is-active");
       this.archiveState.tag = chip.dataset.tag || "";
-      const hash = this.archiveState.tag ? `#/archive/${encodeURIComponent(this.archiveState.tag)}` : "#/archive";
-      history.replaceState(null, "", hash);
-      this.route = { kind: "archive", tag: this.archiveState.tag, canonical: hash };
+      const path = this.archiveState.tag ? `/archive/${encodeURIComponent(this.archiveState.tag)}` : "/archive";
+      history.replaceState(null, "", path);
+      this.route = { kind: "archive", tag: this.archiveState.tag, canonical: path };
       this.updateBreadcrumb(this.route);
       renderList();
     });
@@ -693,7 +707,7 @@ const App = {
       for (const post of posts) {
         const row = document.createElement("a");
         row.className = "archive-item";
-        row.href = `#/posts/${encodeURIComponent(post.slug)}`;
+        row.href = `/posts/${encodeURIComponent(post.slug)}`;
         row.appendChild(el("span", "archive-date", dateShort(post.date)));
         const main = el("span", "archive-main");
         main.appendChild(el("span", "archive-title", post.title));
@@ -772,7 +786,7 @@ const App = {
     index.projects.forEach((project, i) => {
       const card = document.createElement("a");
       card.className = "project-card";
-      card.href = `#/projects/${encodeURIComponent(project.name)}`;
+      card.href = `/projects/${encodeURIComponent(project.name)}`;
       card.appendChild(el("div", "project-card-index", `PROJECT ${String(i + 1).padStart(2, "0")}`));
       card.appendChild(el("h2", "project-card-title", project.title));
       if (project.description) card.appendChild(el("p", "project-card-desc", project.description));
@@ -816,8 +830,8 @@ const App = {
       return this.renderArticle(fallback, this.postFromPage(fallback, route), route, { related: false, nav: false });
     }
 
-    if (route.canonical !== `#/posts/${encodeURIComponent(post.slug)}`) {
-      this.route = { ...route, path: post.path, slug: post.slug, canonical: `#/posts/${encodeURIComponent(post.slug)}` };
+    if (route.canonical !== `/posts/${encodeURIComponent(post.slug)}`) {
+      this.route = { ...route, path: post.path, slug: post.slug, canonical: `/posts/${encodeURIComponent(post.slug)}` };
       history.replaceState(null, "", this.route.canonical);
       this.updateBreadcrumb(this.route);
     }
@@ -1051,7 +1065,7 @@ const App = {
       if (!item) continue;
       const link = document.createElement("a");
       link.className = `post-nav-link ${className}`.trim();
-      link.href = `#/posts/${encodeURIComponent(item.slug)}`;
+      link.href = `/posts/${encodeURIComponent(item.slug)}`;
       link.append(
         el("span", "post-nav-label", label),
         el("span", "post-nav-title", item.title),
@@ -1081,7 +1095,7 @@ const App = {
     for (const { item } of scored) {
       const link = document.createElement("a");
       link.className = "related-card";
-      link.href = `#/posts/${encodeURIComponent(item.slug)}`;
+      link.href = `/posts/${encodeURIComponent(item.slug)}`;
       link.append(
         el("span", "related-date", dateLong(item.date)),
         el("span", "related-title", item.title),
@@ -1208,7 +1222,7 @@ const App = {
     copy.addEventListener("click", () => this.copyText(page.link || project.url || ""));
     const back = document.createElement("a");
     back.className = "button is-quiet";
-    back.href = "#/projects";
+    back.href = "/projects";
     back.textContent = "All projects";
     actions.append(open, copy, back);
     sheet.append(header, box, actions);
@@ -1261,10 +1275,10 @@ const App = {
   openProjectInNewTab() {
     if (!this.currentProject) return;
     const { name, page, route } = this.currentProject;
-    const hash = route && route.kind === "page"
-      ? `#/${page.filePath || page.path}`
-      : `#/projects/${encodeURIComponent(name)}`;
-    window.open(`${location.origin}${location.pathname}${hash}`, "_blank", "noopener");
+    const path = route && route.kind === "page"
+      ? `/${page.filePath || page.path}`
+      : `/projects/${encodeURIComponent(name)}`;
+    window.open(`${location.origin}${path}`, "_blank", "noopener");
   },
 
   // ------------------------------------------------------------------ generic / directory
@@ -1310,7 +1324,7 @@ const App = {
     for (const entry of children) {
       const link = document.createElement("a");
       link.className = "archive-item";
-      link.href = `#/${entry.path}`;
+      link.href = `/${entry.path}`;
       link.append(
         el("span", "archive-date", entry.isDirectory ? "DIR" : (entry.type || "file").toUpperCase()),
         el("span", "archive-title", entry.name + (entry.isDirectory ? "/" : "")),
@@ -1351,7 +1365,7 @@ const App = {
       if (!projects.length) this.els.sidebarProjects.appendChild(el("span", "muted", "No projects mounted."));
       for (const project of projects.slice(0, 4)) {
         const link = el("a", "mini-project");
-        link.href = `#/projects/${encodeURIComponent(project.name)}`;
+        link.href = `/projects/${encodeURIComponent(project.name)}`;
         link.append(
           el("span", "mini-mark", project.type === "link" ? "↗" : "▦"),
           el("span", "mini-name", project.title),
@@ -1421,26 +1435,26 @@ const App = {
       node.setAttribute("aria-current", "page");
       nav.appendChild(node);
     };
-    addLink("~", "#/");
+    addLink("~", "/");
     if (route.kind === "home") return;
     sep();
     if (route.kind === "archive") {
-      addLink("archive", "#/archive");
+      addLink("archive", "/archive");
       if (route.tag) { sep(); current(`#${route.tag}`); } else current("all");
     } else if (route.kind === "tags") current("tags");
     else if (route.kind === "projects") current("projects");
     else if (route.kind === "about") current("about");
     else if (route.kind === "project") {
-      addLink("projects", "#/projects");
+      addLink("projects", "/projects");
       sep();
       current(route.name);
     } else if (route.kind === "post") {
-      addLink("archive", "#/archive");
+      addLink("archive", "/archive");
       sep();
       current(route.title || this.currentPage?.title || route.slug || "note");
     } else if (route.kind === "dir") current(route.path + "/");
     else {
-      addLink("archive", "#/archive");
+      addLink("archive", "/archive");
       sep();
       current(route.path || "");
     }
@@ -1450,6 +1464,15 @@ const App = {
     this._lastMeta = options;
     const { title, description, type = "website", published = "", tags = [] } = options;
     document.title = title;
+    const canonicalUrl = `${location.origin}${location.pathname}`;
+    let canonical = document.head.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.rel = "canonical";
+      document.head.appendChild(canonical);
+    }
+    canonical.href = canonicalUrl;
+    ensureMeta('meta[property="og:url"]', "content", canonicalUrl);
     if (description) {
       ensureMeta('meta[name="description"]', "content", description);
       ensureMeta('meta[property="og:description"]', "content", description);
@@ -1710,6 +1733,12 @@ const App = {
   },
 
   handleClick(event) {
+    const anchor = event.target.closest?.("a[href]");
+    if (anchor && this.shouldHandleLink(anchor, event)) {
+      event.preventDefault();
+      this.go(anchor.href);
+      return;
+    }
     const actionEl = event.target.closest("[data-action]");
     if (actionEl) {
       const action = actionEl.dataset.action;
@@ -1728,6 +1757,25 @@ const App = {
     }
     const quick = event.target.closest("[data-cmd]");
     if (quick) Terminal.runQuick(quick.dataset.cmd);
+  },
+
+  shouldHandleLink(anchor, event) {
+    if (event.defaultPrevented || event.button !== 0) return false;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
+    if (anchor.target && anchor.target !== "_self") return false;
+    if (anchor.hasAttribute("download")) return false;
+    let url;
+    try { url = new URL(anchor.href, location.href); } catch { return false; }
+    if (url.origin !== location.origin) return false;
+    if (url.hash && url.pathname === location.pathname) return false;
+    if (url.pathname.startsWith("/api/")) return false;
+    if (["/rss.xml", "/feed.xml", "/sitemap.xml", "/robots.txt"].includes(url.pathname)) return false;
+    const parts = url.pathname.split("/").filter(Boolean);
+    const first = parts[0] || "";
+    if (["css", "js", "assets", "images", "img", "fonts"].includes(first)) return false;
+    if (["archive", "tags", "projects", "about", "posts", "post", "p"].includes(first)) return true;
+    const last = parts[parts.length - 1] || "";
+    return !last.includes(".");
   },
 
   async retryCurrent() {
@@ -1803,7 +1851,7 @@ const App = {
     retry.type = "button";
     retry.dataset.action = "retry";
     const home = el("a", "button", "Back home");
-    home.href = "#/";
+    home.href = "/";
     const terminal = el("button", "button", "Open terminal");
     terminal.type = "button";
     terminal.dataset.action = "terminal";
