@@ -50,11 +50,6 @@ export function isSupportedFile(path) {
 export function inferPageType(path) {
     return getExtension(path) === "html" ? "html" : "md";
 }
-export function resolvePageType(path, storedType, content = "") {
-    if (storedType === "link" && extractLink(content))
-        return "link";
-    return inferPageType(path);
-}
 export function ensureMarkdownExtension(path) {
     return getExtension(path) ? path : `${path}.md`;
 }
@@ -139,7 +134,9 @@ export async function readPage(filePath) {
     const rowTime = parseDbTime(row?.updated_at);
     // Disk wins when it was modified after the last index.
     if (disk && (!row || disk.mtimeMs > rowTime + 1000)) {
-        const type = resolvePageType(path, row?.type, disk.content);
+        const type = row?.type === "link" && extractLink(disk.content)
+            ? "link"
+            : inferPageType(path);
         if (db.isDbAvailable())
             db.upsertPage(path, disk.content, type);
         return {
@@ -153,12 +150,12 @@ export async function readPage(filePath) {
         return {
             path,
             content: row.content,
-            type: resolvePageType(path, row.type, row.content),
+            type: row.type,
             updatedAt: row.updated_at,
         };
     }
     if (disk) {
-        const type = resolvePageType(path, null, disk.content);
+        const type = inferPageType(path);
         if (db.isDbAvailable())
             db.upsertPage(path, disk.content, type);
         return {

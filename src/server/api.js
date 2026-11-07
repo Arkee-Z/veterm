@@ -64,7 +64,7 @@ export async function handleApi(req, pathname) {
     }
 }
 function pageTitle(page) {
-    if (page.type === "html" || page.path.toLowerCase().endsWith(".html")) {
+    if (page.type === "html") {
         const match = page.content.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
         return match ? match[1].trim() : page.path;
     }
@@ -84,12 +84,12 @@ function pageTitle(page) {
 }
 function serializePage(page, includeContent = true) {
     const link = store.pageLink(page);
-    const type = link ? "link" : store.resolvePageType(page.path, page.type, page.content);
-    const { data, body } = type === "md"
+    const type = link ? "link" : page.type;
+    const { data, body } = page.type === "md"
         ? parseFrontMatter(page.content)
         : { data: {}, body: page.content };
     const tags = normalizeTags(data.tags);
-    const text = type === "md" ? plainText(body) : plainText(page.content);
+    const text = page.type === "md" ? plainText(body) : plainText(page.content);
     const title = String(data.title || pageTitle(page));
     const excerpt = String(data.description || text.slice(0, 220)).trim();
     const date = normalizeDate(data.date) || normalizeDate(page.updatedAt);
@@ -110,7 +110,7 @@ function serializePage(page, includeContent = true) {
         slug,
         tags,
         excerpt,
-        readingTime: type === "md" ? readingTime(body) : 1,
+        readingTime: page.type === "md" ? readingTime(body) : 1,
         featured: data.featured === true || data.featured === "true",
         meta: {
             title,
