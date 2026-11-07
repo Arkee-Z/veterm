@@ -1236,7 +1236,6 @@ const App = {
   },
 
   showProjectHtml(page, name, route) {
-    const iframe = this.els.projectFrame;
     this.els.viewer.classList.add("project-mode");
     this.els.content.classList.add("hidden");
     this.els.projectView.classList.remove("hidden");
@@ -1244,7 +1243,14 @@ const App = {
     this.els.projectPath.textContent = page.path && page.path.endsWith(".html")
       ? `~/${page.path}`
       : `~/projects/${name} · ${file}`;
+    // Replacing the iframe guarantees a fresh document when the same project is
+    // opened twice. Reassigning an identical srcdoc can leave a blank frame.
+    const previous = this.els.projectFrame;
+    const iframe = previous.cloneNode(false);
+    iframe.removeAttribute("srcdoc");
     iframe.title = `${this.currentProject?.project?.title || name} — project preview`;
+    previous.replaceWith(iframe);
+    this.els.projectFrame = iframe;
     iframe.srcdoc = page.html || page.content || "<!doctype html><title>Empty project</title>";
     this.currentProject = { ...(this.currentProject || {}), name, page, route: route || { kind: "project", name } };
     this.currentArticle = null;
