@@ -1398,9 +1398,10 @@ const App = {
     }
     if (this.els.sidebarProjects) {
       this.els.sidebarProjects.replaceChildren();
-      const projects = index?.projects || [];
+      // Link projects stay on the Projects page; the sidebar is for previewable sandboxes.
+      const projects = (index?.projects || []).filter((project) => project.type !== "link");
       if (!projects.length) this.els.sidebarProjects.appendChild(el("span", "muted", I18n.t("sidebar.noProjects")));
-      for (const project of projects.slice(0, 4)) {
+      for (const project of projects.slice(0, 3)) {
         const link = el("a", "mini-project");
         link.href = `/projects/${encodeURIComponent(project.name)}`;
         link.append(
