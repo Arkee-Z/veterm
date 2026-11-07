@@ -1162,10 +1162,13 @@ const App = {
     const project = index?.projects.find((item) => item.name === name) || {
       name, title: result.title || name, description: "", tags: [], type: result.type, url: result.link || "",
     };
+    const isHtmlProject = result.type === "html" ||
+      String(result.filePath || "").toLowerCase().endsWith(".html");
     const page = {
       ...result,
       path: `projects/${name}`,
       filePath: result.filePath || "",
+      html: isHtmlProject ? (result.content ?? result.html) : result.html,
       meta: {
         title: project.title,
         description: project.description,
@@ -1173,9 +1176,10 @@ const App = {
       },
     };
     this.currentProject = { name, page, route: { kind: "project", name }, project };
-    if (result.type === "html" || result.type === "link") {
-      if (result.type === "link") this.renderProjectLink(page, project);
-      else this.showProjectHtml(page, name, { kind: "project", name });
+    if (result.type === "link") {
+      this.renderProjectLink(page, project);
+    } else if (isHtmlProject) {
+      this.showProjectHtml(page, name, { kind: "project", name });
     } else {
       this.renderArticle(page, {
         path: page.filePath || `projects/${name}`,

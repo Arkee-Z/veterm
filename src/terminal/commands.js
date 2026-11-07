@@ -391,7 +391,7 @@ async function handleGoto(args) {
                 projectName: name,
             };
         }
-        if (page.type === "html") {
+        if (page.type === "html" || page.path.toLowerCase().endsWith(".html")) {
             return {
                 output: "",
                 html: page.content,
