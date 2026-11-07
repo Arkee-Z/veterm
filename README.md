@@ -166,7 +166,72 @@ The app seeds the database from `content/` on first run. The editor writes both 
 
 ## Deploy
 
-### VPS / systemd
+This is a Node.js app, not a static site. The production shape is:
+
+```text
+Internet -> Caddy (80/443) -> Node 127.0.0.1:8000
+```
+
+You need a host with a persistent filesystem for `data/` and `content/`. A small VPS is enough.
+
+### 1. Point DNS at the server
+
+Create an `A` record (and `AAAA` if you use IPv6) for your domain, for example:
+
+```text
+blog.example.com -> your.server.ip
+```
+
+Wait for DNS to resolve before starting Caddy; otherwise certificate issuance will fail.
+
+### 2. Install Node.js 24+
+
+On Debian/Ubuntu:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt-get install -y nodejs
+node -v
+```
+
+The result must be `v24` or newer. Avoid installing Node only under `/root/.nvm`: the systemd service runs as `www-data` and must be able to execute the same Node binary. For a system service, a system-wide Node install is simpler.
+
+### 3. Clone the site and configure it
+
+```bash
+sudo mkdir -p /opt
+sudo git clone https://github.com/Arkee-Z/veterm.git /opt/veterm
+
+cd /opt/veterm
+sudo cp .env.example .env
+sudo nano .env
+```
+
+Set at least:
+
+```env
+VETERM_ADMIN_PASSWORD=your-long-password
+HOST=127.0.0.1
+PORT=8000
+SITE_URL=https://blog.example.com
+```
+
+`SITE_URL` is used for RSS and sitemap links. Binding `127.0.0.1` means only Caddy can reach the app; port 8000 is not exposed publicly.
+
+Create the writable paths and give the service user ownership:
+
+```bash
+sudo mkdir -p /opt/veterm/data /opt/veterm/content
+sudo chown -R www-data:www-data /opt/veterm
+```
+
+The app writes SQLite to `data/` and edited posts to `content/`, so `www-data` must be able to write there. `.env` must be readable by `www-data`, but should not be world-readable:
+
+```bash
+sudo chmod 640 /opt/veterm/.env
+```
+
+### 4. Run it with systemd
 
 Create `/etc/systemd/system/veterm.service`:
 
@@ -176,24 +241,149 @@ Description=Veterm blog
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/veterm
-ExecStart=/usr/local/bin/node /opt/veterm/main.js
-EnvironmentFile=/opt/veterm/.env
-Restart=always
+Type=simple
 User=www-data
+Group=www-data
+WorkingDirectory=/opt/veterm
+ExecStart=/usr/bin/node /opt/veterm/main.js
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+TimeoutStopSec=10
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Then:
+Check the Node path first:
+
+```bash
+command -v node
+```
+
+If it is not `/usr/bin/node`, replace `ExecStart` with the real path. The app loads `.env` automatically from `WorkingDirectory`, so no `EnvironmentFile` line is needed.
+
+Start it:
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now veterm
+sudo systemctl status veterm --no-pager
 ```
 
-Set `PORT`, `HOST`, and optionally `SITE_URL` (used in RSS/sitemap links) in `.env`. For HTTPS, put Nginx/Caddy in front of the Node process.
+Test locally:
+
+```bash
+curl -I http://127.0.0.1:8000
+curl -s http://127.0.0.1:8000/api/posts | head
+```
+
+Logs:
+
+```bash
+sudo journalctl -u veterm -f
+```
+
+### 5. Put Caddy in front
+
+If Nginx is running only its default site, stop it first so it does not occupy port 80:
+
+```bash
+sudo systemctl stop nginx
+sudo systemctl disable nginx
+```
+
+Only do this if Nginx is not serving another site. If it is, keep Nginx and use an Nginx reverse proxy instead (see below).
+
+Edit `/etc/caddy/Caddyfile`:
+
+```caddy
+blog.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8000
+}
+```
+
+Apply it:
+
+```bash
+sudo caddy fmt --overwrite /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl restart caddy
+sudo systemctl status caddy --no-pager
+```
+
+Caddy will obtain and renew HTTPS automatically. Check the listeners:
+
+```bash
+sudo ss -ltnp | grep -E ':(80|443)\s'
+```
+
+Both should show `caddy`.
+
+Allow HTTP/HTTPS in the firewall, but not 8000:
+
+```bash
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+```
+
+### 6. Verify
+
+```bash
+curl -I https://blog.example.com
+curl -s https://blog.example.com/api/posts | head
+```
+
+Open `https://blog.example.com` in a browser. Log in through the terminal:
+
+```text
+login admin your-password
+```
+
+If Caddy returns **502**, Node is not running or is not listening on `127.0.0.1:8000`. If HTTPS certificate issuance fails, check DNS and that ports 80/443 are reachable.
+
+### Updating
+
+```bash
+cd /opt/veterm
+sudo git pull
+sudo chown -R www-data:www-data /opt/veterm
+sudo systemctl restart veterm
+```
+
+Back up the important writable state:
+
+```bash
+cd /opt/veterm
+sudo tar czf /root/veterm-backup-$(date +%F).tar.gz content data .env
+```
+
+### Using Nginx instead of Caddy
+
+If Nginx already serves other sites, keep it and proxy Veterm to `127.0.0.1:8000`. A minimal server block:
+
+```nginx
+server {
+    listen 80;
+    server_name blog.example.com;
+    client_max_body_size 6m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+    }
+}
+```
+
+Then run `sudo nginx -t`, reload Nginx, and issue a certificate with `sudo certbot --nginx -d blog.example.com`. Do not run Caddy and Nginx on the same ports.
 
 ## Tech Stack
 
