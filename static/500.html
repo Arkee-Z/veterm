@@ -3,7 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark light">
 <title>500 — Veterm</title>
+<script>
+  (function () {
+    try {
+      var theme = localStorage.getItem("veterm-theme");
+      if (theme === "light" || theme === "dark") {
+        document.documentElement.setAttribute("data-theme", theme);
+      }
+    } catch (error) { /* ignore */ }
+  })();
+</script>
 <style>
   :root {
     --bg: #1c1a18;
@@ -13,33 +24,44 @@
     --text-muted: #6e6860;
     --accent: #c0392b;
     --border: #3a3530;
-    --font-mono: "Sarasa Mono SC", "LXGW WenKai Mono", "JetBrains Mono", "Consolas", monospace;
+    --font-mono: "Sarasa Mono SC", "LXGW WenKai Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  [data-theme="light"] {
+    --bg: #faf8f4;
+    --bg-card: #fefdfb;
+    --text-primary: #1a1a1a;
+    --text-secondary: #555;
+    --text-muted: #888;
+    --border: #d0cbc3;
+    color-scheme: light;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { min-height: 100%; }
   body {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 24px;
     background: var(--bg);
     color: var(--text-primary);
     font-family: var(--font-mono);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
     font-weight: 300;
-    line-height: 1.6;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
   }
   .card {
-    background: var(--bg-card);
+    position: relative;
+    width: min(540px, 100%);
+    padding: 46px 44px;
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 48px 44px;
-    max-width: 520px;
-    width: 100%;
-    margin: 24px;
-    position: relative;
+    background: var(--bg-card);
     overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   }
   .card::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -48,21 +70,48 @@
     background: var(--accent);
     opacity: 0.6;
   }
-  .code { font-size: 4rem; font-weight: 300; color: var(--accent); margin-bottom: 8px; }
-  h1 { font-size: 1.2rem; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); }
-  p { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 24px; }
-  .hint { font-size: 0.72rem; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  .eyebrow {
+    margin-bottom: 12px;
+    color: var(--accent);
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .code { margin-bottom: 8px; color: var(--accent); font-size: 4rem; font-weight: 300; line-height: 1; }
+  h1 { margin-bottom: 12px; color: var(--text-primary); font-size: 1.2rem; font-weight: 600; letter-spacing: -0.01em; }
+  p { margin-bottom: 24px; color: var(--text-secondary); font-size: 0.85rem; }
+  .hint {
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.7rem;
+  }
   a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent); }
-  a:hover { border-bottom: 2px solid var(--accent); }
+  a:hover { border-bottom-width: 2px; }
+  kbd {
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--bg);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+  }
+  @media (max-width: 520px) {
+    body { padding: 12px; }
+    .card { padding: 30px 24px; }
+    .code { font-size: 3rem; }
+  }
 </style>
 </head>
 <body>
 <div class="card">
+  <div class="eyebrow">error · internal</div>
   <div class="code">500</div>
   <h1>Internal Server Error</h1>
-  <p>Something went wrong on the server. The error has been logged and will be investigated. Please try again shortly.</p>
+  <p>Something went wrong while serving this page. The error has been logged. Please try again in a moment.</p>
   <div class="hint">
-    <a href="/">← Return to homepage</a> &nbsp;·&nbsp; Try refreshing the page
+    <a href="/">Return to homepage</a> &nbsp;·&nbsp; refresh the page to retry
   </div>
 </div>
 </body>

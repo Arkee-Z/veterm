@@ -1,56 +1,86 @@
 /**
- * API communication layer
+ * API communication layer.
+ * Every request resolves to a plain object — network failures never throw.
  */
-const API = {
-  /**
-   * Execute a terminal command on the server
-   * @param {string} command
-   * @returns {Promise<object>}
-   */
-  async execCommand(command) {
-    const res = await fetch("/api/cmd", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ command }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: "Request failed" }));
-      return { output: "Error: " + (err.error || res.statusText), close: false };
+const API = (() => {
+  const TIMEOUT_MS = 15000;
+
+  async function request(path, options = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const response = await fetch(path, {
+        credentials: "same-origin",
+        cache: "no-store",
+        ...options,
+        signal: controller.signal,
+      });
+
+      const text = await response.text();
+      let data = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { error: text };
+        }
+      }
+
+      if (!response.ok) {
+        return {
+          ...data,
+          error: data.error || `Request failed (${response.status})`,
+          status: response.status,
+        };
+      }
+      return data;
+    } catch (error) {
+      const message = error && error.name === "AbortError"
+        ? "The server took too long to respond."
+        : "Cannot reach the server. Is it running?";
+      return { error: message, network: true };
+    } finally {
+      clearTimeout(timer);
     }
-    return res.json();
-  },
+  }
 
-  /**
-   * Save file content
-   * @param {string} filePath
-   * @param {string} content
-   * @returns {Promise<object>}
-   */
-  async saveFile(filePath, content) {
-    const res = await fetch("/api/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filePath, content }),
-    });
-    return res.json();
-  },
+  return {
+    request,
 
-  /**
-   * Render a markdown file
-   * @param {string} filePath
-   * @returns {Promise<object>}
-   */
-  async renderFile(filePath) {
-    const res = await fetch("/api/render?file=" + encodeURIComponent(filePath));
-    return res.json();
-  },
+    execCommand(command) {
+      return request("/api/cmd", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command }),
+      });
+    },
 
-  /**
-   * Get current session info
-   * @returns {Promise<object>}
-   */
-  async getSession() {
-    const res = await fetch("/api/session");
-    return res.json();
-  },
-};
+    saveFile(filePath, content) {
+      return request("/api/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filePath, content }),
+      });
+    },
+
+    renderFile(filePath) {
+      return request("/api/render?file=" + encodeURIComponent(filePath));
+    },
+
+    getProject(name) {
+      return request("/api/project?name=" + encodeURIComponent(name));
+    },
+
+    getPosts() {
+      return request("/api/posts");
+    },
+
+    getTree() {
+      return request("/api/tree");
+    },
+
+    getSession() {
+      return request("/api/session");
+    },
+  };
+})();

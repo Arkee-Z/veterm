@@ -1,4 +1,11 @@
-# Gene Max Zhang
+---
+title: Gene Max Zhang
+description: Full-stack engineer, open-source maintainer, and terminal enthusiast. I build small systems that make writing and reading on the web feel more deliberate.
+layout: about
+location: Chengdu, China
+email: gene.max.zheng@foxmail.com
+github: https://github.com/Arkee
+---
 
 > Full-Stack Engineer · Open Source · Terminal Enthusiast
 
@@ -10,21 +17,22 @@
 
 ### About Me
 
-I build the web through terminals. My work spans full-stack engineering with a focus on Rust, TypeScript, and Go. This blog itself is a terminal-driven experiment — every page you see here was published, edited, and styled entirely through the command pane below.
+I build the web through terminals. My work spans full-stack engineering with a focus on Rust, TypeScript, and Go. This blog itself is a terminal-driven experiment — every page you see here was published, edited, and styled entirely through the command palette and the admin editor.
 
-I believe the terminal is the most honest interface between a developer and their machine. Everything else is decoration.
+I believe the terminal is the most honest interface between a developer and their machine. Everything else is decoration — but decoration can be thoughtful. This site tries to prove that a command line and a comfortable reading experience do not have to be enemies.
 
 ### Skills
 
 - **Languages:** TypeScript, Go, C, Python
-- **Frontend:** Fresh, PWA, Wails, WASM
-- **Backend:** Deno, SQLite, Gin, FastAPI
+- **Frontend:** Node.js, Fresh, PWA, Wails, WASM
+- **Backend:** Node.js, SQLite, Gin, FastAPI
 - **Infra:** Docker, Linux, GitHub Actions
 
 ### Projects
 
-- **Veterm Blog** — This very site. Terminal-native blog engine built with Deno + SQLite.
-- **Open source** — Active contributor on GitHub. See \`goto github\` for links.
+- **Veterm Blog** — This very site. A terminal-native blog engine built with Node.js + SQLite.
+- **Palette Lab** — A small interactive color study, mounted as a sandboxed project.
+- **Open source** — Active contributor on GitHub. See `goto github` for links.
 
 ### Motto
 

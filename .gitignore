@@ -2,8 +2,12 @@
 .DS_Store
 Thumbs.db
 
-# Deno
-deno.lock
+# Node
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Editor
 .vscode/
@@ -13,8 +17,9 @@ deno.lock
 .env
 .env.local
 
-# User data (generated at runtime)
-data/users.json
+# Runtime data (generated at startup)
+data/
 *.db
 *.db-journal
 *.db-wal
+*.db-shm

@@ -1,90 +1,320 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Veterm — a terminal-native notebook on systems, interfaces, and the web.">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#141311">
+  <meta property="og:title" content="Veterm — Terminal Blog Engine">
+  <meta property="og:description" content="Notes on systems, interfaces, and the web — published from a terminal.">
+  <meta property="og:type" content="website">
   <title>Veterm — Terminal Blog Engine</title>
-  <link rel="stylesheet" href="/css/style.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c0392b' stroke-width='1.5'%3E%3Cpath d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'/%3E%3Cpath d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'/%3E%3C/svg%3E">
+  <link rel="alternate" type="application/rss+xml" title="Veterm — RSS" href="/rss.xml">
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem("veterm-theme");
+        if (theme !== "light" && theme !== "dark") theme = "dark";
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) { /* storage may be unavailable */ }
+    })();
+  </script>
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <div id="app" class="app">
-    <!-- VIEWER — always visible, hash-routed -->
-    <main id="viewer-panel" class="viewer-panel">
-      <div id="rendered-content" class="rendered-content card-container">
-        <!-- Dynamic content injected here -->
-      </div>
-    </main>
+  <a class="skip-link" href="#viewer-panel">Skip to content</a>
 
-    <!-- ADMIN EDITOR — Ctrl+Shift+E, overlay -->
-    <div id="editor-overlay" class="editor-overlay hidden">
-      <div class="editor-sidebar" id="editor-sidebar">
-        <div class="editor-sidebar-header">Files</div>
-        <div id="editor-file-tree" class="editor-file-tree"></div>
-      </div>
-      <div class="editor-main">
-        <div class="editor-header">
-          <span id="editor-filename">about.md</span>
-          <div class="editor-header-actions">
-            <span id="editor-session-badge" class="editor-session-badge">admin</span>
-            <span class="editor-hint">Ctrl+S to save · Esc to close</span>
-            <button id="editor-close-btn" class="editor-close-btn" title="Close editor (Esc)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  <div id="app" class="app">
+    <div class="app-shell">
+      <aside id="sidebar" class="sidebar" aria-label="Site navigation">
+        <div class="sidebar-inner">
+          <div class="sidebar-head">
+            <a class="brand" href="#/" aria-label="Veterm home">
+              <span class="brand-mark" aria-hidden="true">&gt;_</span>
+              <span class="brand-text">
+                <span class="brand-name">Veterm</span>
+                <span class="brand-sub">terminal notebook</span>
+              </span>
+            </a>
+            <button class="sidebar-close" type="button" data-action="sidebar-close" aria-label="Close navigation">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
+
+          <p class="sidebar-bio">A quiet place for long-form notes on software, type, and the web.</p>
+
+          <nav class="site-nav" aria-label="Sections">
+            <a href="#/" data-nav="home"><span class="nav-num">01</span><span class="nav-label">Home</span></a>
+            <a href="#/archive" data-nav="archive"><span class="nav-num">02</span><span class="nav-label">Archive</span></a>
+            <a href="#/tags" data-nav="tags"><span class="nav-num">03</span><span class="nav-label">Tags</span></a>
+            <a href="#/projects" data-nav="projects"><span class="nav-num">04</span><span class="nav-label">Projects</span></a>
+            <a href="#/about" data-nav="about"><span class="nav-num">05</span><span class="nav-label">About</span></a>
+          </nav>
+
+          <section class="sidebar-block" aria-label="Tags">
+            <div class="sidebar-label"><span>Tags</span><a href="#/tags">all</a></div>
+            <div id="sidebar-tags" class="tag-cloud"></div>
+          </section>
+
+          <section class="sidebar-block" aria-label="Projects">
+            <div class="sidebar-label"><span>Projects</span><a href="#/projects">all</a></div>
+            <div id="sidebar-projects" class="side-projects"></div>
+          </section>
+
+          <div class="sidebar-foot">
+            <div class="side-actions">
+              <button type="button" data-action="search" class="side-action">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>Search</span><kbd>ctrl k</kbd>
+              </button>
+              <button type="button" data-action="theme" class="side-action">
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <span>Theme</span>
+              </button>
+              <button type="button" data-action="terminal" class="side-action js-terminal-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                <span>Terminal</span><kbd>ctrl shift p</kbd>
+              </button>
+              <button type="button" data-action="editor" class="side-action js-editor-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                <span>Editor</span>
+              </button>
+            </div>
+            <div class="side-meta">
+              <span id="sidebar-user">visitor</span>
+              <span id="sidebar-generated"></span>
+            </div>
+          </div>
         </div>
-        <textarea id="code-editor" class="code-editor" spellcheck="false" placeholder="Write your markdown here..."></textarea>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button type="button" class="mobile-menu" data-action="sidebar" aria-label="Open navigation" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb">
+              <a href="#/" class="breadcrumb-root">~</a>
+            </nav>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="topbar-btn" data-action="search" aria-label="Search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span>Search</span><kbd>ctrl k</kbd>
+            </button>
+            <button type="button" class="topbar-btn icon-only" data-action="theme" aria-label="Toggle theme">
+              <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+              <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+            <button type="button" class="topbar-btn icon-only js-terminal-btn" data-action="terminal" aria-label="Open terminal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            </button>
+            <button type="button" class="topbar-btn icon-only js-editor-btn" data-action="editor" aria-label="Open admin editor">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+            </button>
+          </div>
+          <div class="reading-progress" aria-hidden="true"><span id="reading-progress"></span></div>
+        </header>
+
+        <main id="viewer-panel" class="viewer-panel" tabindex="-1">
+          <div id="rendered-content" class="rendered-content">
+            <div class="state-card loading-card" aria-busy="true">
+              <div class="state-eyebrow">$ open ~/</div>
+              <div class="skeleton skeleton-title"></div>
+              <div class="skeleton"></div>
+              <div class="skeleton skeleton-short"></div>
+            </div>
+          </div>
+
+          <section id="project-view" class="project-view hidden" aria-label="Project preview">
+            <div class="project-toolbar">
+              <div class="project-path-group">
+                <span class="project-label">project</span>
+                <span id="project-path" class="project-path">~/projects/</span>
+              </div>
+              <div class="project-actions">
+                <button id="project-reload-btn" class="ghost-btn" type="button" data-action="project-reload" title="Reload project">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+                  <span>Reload</span>
+                </button>
+                <button id="project-open-btn" class="ghost-btn" type="button" data-action="project-open" title="Open project page in a new tab">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  <span>Open</span>
+                </button>
+                <a class="ghost-btn" href="#/projects" title="Back to projects">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 12 12 3l9 9"/><path d="M5 10v10h14V10"/></svg>
+                  <span>Projects</span>
+                </a>
+              </div>
+            </div>
+            <iframe id="project-frame" class="project-frame" title="Project preview"
+              sandbox="allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
+              referrerpolicy="no-referrer"></iframe>
+          </section>
+        </main>
+
+        <footer id="status-bar" class="status-bar">
+          <div class="status-left">
+            <span id="status-dot" class="status-dot" aria-hidden="true"></span>
+            <span id="status-text" class="status-text" role="status" aria-live="polite">Ready</span>
+            <span id="status-path" class="status-path"></span>
+          </div>
+          <div class="status-right">
+            <span id="status-user" class="status-user">visitor</span>
+            <span class="status-sep" aria-hidden="true">·</span>
+            <span id="status-hint" class="status-hint">ctrl shift p terminal</span>
+          </div>
+        </footer>
       </div>
     </div>
 
-    <!-- STATUS BAR -->
-    <div id="status-bar" class="status-bar">
-      <span>Ctrl+Shift+P — Terminal · Ctrl+Shift+E — Editor</span>
-      <span id="status-mode" class="status-mode">Veterm</span>
-    </div>
+    <div id="sidebar-backdrop" class="sidebar-backdrop hidden" data-action="sidebar-close"></div>
+
+    <button id="back-to-top" class="back-to-top hidden" type="button" data-action="top" aria-label="Back to top">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+    </button>
   </div>
 
-  <!-- FLOATING TERMINAL — position: fixed overlay -->
-  <div id="terminal-overlay" class="terminal-overlay hidden">
-    <div class="terminal-backdrop" id="terminal-backdrop"></div>
+  <!-- FLOATING TERMINAL -->
+  <div id="terminal-overlay" class="terminal-overlay hidden" role="region" aria-label="Veterm terminal">
     <div class="terminal-panel" id="terminal-panel">
-      <div class="terminal-resize-handle" id="terminal-resize-handle"></div>
+      <div id="terminal-resize-handle" class="terminal-resize-handle" role="separator" aria-orientation="horizontal" aria-label="Resize terminal" title="Drag to resize · double-click to reset">
+        <span aria-hidden="true"></span>
+      </div>
       <div class="terminal-header">
-        <span class="terminal-title">Veterm Terminal</span>
+        <div class="terminal-title-group">
+          <span class="terminal-mark" aria-hidden="true">&gt;_</span>
+          <span class="terminal-title">Veterm Terminal</span>
+          <span class="terminal-cwd" id="terminal-cwd">~/blog</span>
+        </div>
         <div class="terminal-actions">
           <span id="terminal-user-badge" class="terminal-user-badge">visitor</span>
-          <button id="terminal-close-btn" class="terminal-close-btn" title="Close (Esc)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <button id="terminal-clear-btn" class="terminal-icon-btn" type="button" title="Clear screen (Ctrl+L)" aria-label="Clear terminal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          </button>
+          <button id="terminal-close-btn" class="terminal-icon-btn" type="button" title="Close (Esc)" aria-label="Close terminal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
       </div>
-      <div id="terminal-output" class="terminal-output">
+      <div id="terminal-output" class="terminal-output" role="log" aria-live="polite" aria-label="Terminal output">
         <div class="terminal-welcome">
-          <pre>
- __     __  _______  ______   _______  _______  __   __
-|  |   |  ||       ||    _ | |       ||       ||  |_|  |
-|  |   |  ||    ___||   | || |_     _||    ___||       |
-|  |   |  ||   |___ |   |_||_  |   |  |   |___ |       |
-|  |___|  ||    ___||    __  | |   |  |    ___||       |
-|        ||   |___ |   |  | | |   |  |   |___ | ||_|| |
-|________||_______||___|  |_| |___|  |_______||_|   |_|
-          </pre>
-          <p>Logged in as: <strong id="welcome-user">visitor</strong></p>
+          <div class="terminal-banner">
+            <div class="terminal-banner-line">
+              <span class="terminal-banner-prompt">veterm@node:~$</span>
+              <span class="terminal-banner-meta">v3 · Node 26 · SQLite</span>
+            </div>
+            <p>Signed in as <strong id="welcome-user">visitor</strong>. Type <code>help</code>, or try:</p>
+          </div>
+          <div class="terminal-quick">
+            <button type="button" data-cmd="archive">archive</button>
+            <button type="button" data-cmd="tags">tags</button>
+            <button type="button" data-cmd="search node">search node</button>
+            <button type="button" data-cmd="cat about.md">cat about.md</button>
+            <button type="button" data-cmd="goto palette-lab">goto palette-lab</button>
+            <button type="button" data-cmd="help">help</button>
+          </div>
         </div>
       </div>
+      <div id="terminal-suggest" class="terminal-suggest hidden" role="listbox" aria-label="Completions"></div>
       <div class="terminal-input-line">
-        <span class="terminal-prompt">$</span>
-        <input type="text" id="terminal-input" class="terminal-input" autofocus placeholder="Type a command...">
+        <span class="terminal-prompt" aria-hidden="true">$</span>
+        <input type="text" id="terminal-input" class="terminal-input" aria-label="Command input"
+          autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+          placeholder="Type a command…">
+        <span id="terminal-busy" class="terminal-busy hidden" aria-hidden="true"></span>
       </div>
     </div>
   </div>
 
-  <!-- TOAST -->
-  <div id="toast" class="toast hidden"></div>
+  <!-- SEARCH -->
+  <div id="search-overlay" class="search-overlay hidden" role="dialog" aria-modal="true" aria-label="Search Veterm">
+    <div class="search-panel">
+      <div class="search-head">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="search-input" class="search-input" type="search" placeholder="Search posts, tags, projects…" autocomplete="off" spellcheck="false" aria-label="Search query">
+        <button id="search-close" class="search-close" type="button" data-action="search-close" aria-label="Close search">esc</button>
+      </div>
+      <div id="search-results" class="search-results" role="listbox" aria-label="Search results"></div>
+      <div class="search-foot">
+        <span id="search-count">Start typing</span>
+        <span class="search-keys"><kbd>↑</kbd><kbd>↓</kbd> navigate <kbd>enter</kbd> open</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN EDITOR -->
+  <div id="editor-overlay" class="editor-overlay hidden" role="dialog" aria-modal="true" aria-label="Admin editor">
+    <aside class="editor-sidebar" id="editor-sidebar">
+      <div class="editor-sidebar-header">
+        <span>Files</span>
+        <div class="editor-sidebar-tools">
+          <button id="editor-refresh-btn" class="editor-icon-btn" type="button" title="Refresh file list" aria-label="Refresh file list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+          </button>
+          <button id="editor-new-btn" class="editor-icon-btn" type="button" title="New file" aria-label="New file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button id="editor-sidebar-close" class="editor-icon-btn editor-sidebar-close" type="button" title="Close file list" aria-label="Close file list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <form id="editor-new-form" class="editor-new-form hidden" autocomplete="off">
+        <input id="editor-new-input" class="editor-new-input" type="text" placeholder="posts/note.md" aria-label="New file path" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <button type="submit" class="editor-new-submit">Add</button>
+      </form>
+      <div id="editor-file-tree" class="editor-file-tree" aria-label="Content files"></div>
+      <div class="editor-sidebar-footer"><span id="editor-file-count">0 files</span></div>
+    </aside>
+
+    <div class="editor-main">
+      <div class="editor-header">
+        <div class="editor-title-group">
+          <button id="editor-sidebar-toggle" class="editor-icon-btn editor-sidebar-toggle" type="button" title="Toggle file list" aria-label="Toggle file list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <span id="editor-file-type" class="editor-file-type">MD</span>
+          <span id="editor-filename" class="editor-filename">No file selected</span>
+          <span id="editor-dirty" class="editor-dirty hidden" title="Unsaved changes" aria-label="Unsaved changes">●</span>
+        </div>
+        <div class="editor-header-actions">
+          <span id="editor-session-badge" class="editor-session-badge">admin</span>
+          <span class="editor-hint">Ctrl+S save · Esc close</span>
+          <button id="editor-save-btn" class="editor-btn primary" type="button" title="Save (Ctrl+S)" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>Save</span>
+          </button>
+          <button id="editor-close-btn" class="editor-icon-btn" type="button" title="Close (Esc)" aria-label="Close editor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="editor-body">
+        <textarea id="code-editor" class="code-editor" spellcheck="false" aria-label="Markdown source editor" placeholder="Select a file, or create one with the + button…"></textarea>
+      </div>
+      <div class="editor-footer">
+        <span id="editor-cursor">Ln 1, Col 1</span>
+        <span id="editor-stats">0 words · 0 chars</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <span id="toast-icon" class="toast-icon" aria-hidden="true"></span>
+    <span id="toast-message" class="toast-message"></span>
+  </div>
+
+  <noscript><div class="noscript">Veterm needs JavaScript for the viewer, terminal, and editor.</div></noscript>
 
   <script src="/js/api.js"></script>
   <script src="/js/cache.js"></script>
   <script src="/js/toast.js"></script>
+  <script src="/js/search.js"></script>
   <script src="/js/terminal.js"></script>
   <script src="/js/editor.js"></script>
   <script src="/js/app.js"></script>

@@ -1,0 +1,6 @@
+{
+  "title": "Palette Lab",
+  "description": "A small interactive color study. Generate palettes, lock the swatches you like, and copy the hex values.",
+  "tags": ["experiment", "css", "interactive"],
+  "order": 2
+}

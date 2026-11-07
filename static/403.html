@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark light">
+<title>403 — Veterm</title>
+<script>
+  (function () {
+    try {
+      var theme = localStorage.getItem("veterm-theme");
+      if (theme === "light" || theme === "dark") {
+        document.documentElement.setAttribute("data-theme", theme);
+      }
+    } catch (error) { /* ignore */ }
+  })();
+</script>
+<style>
+  :root {
+    --bg: #1c1a18;
+    --bg-card: #252220;
+    --text-primary: #d6cfc3;
+    --text-secondary: #a0988a;
+    --text-muted: #6e6860;
+    --accent: #c0392b;
+    --border: #3a3530;
+    --font-mono: "Sarasa Mono SC", "LXGW WenKai Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  [data-theme="light"] {
+    --bg: #faf8f4;
+    --bg-card: #fefdfb;
+    --text-primary: #1a1a1a;
+    --text-secondary: #555;
+    --text-muted: #888;
+    --border: #d0cbc3;
+    color-scheme: light;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-weight: 300;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .card {
+    position: relative;
+    width: min(540px, 100%);
+    padding: 46px 44px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-card);
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+  .eyebrow {
+    margin-bottom: 12px;
+    color: var(--accent);
+    font-size: 0.64rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .code { margin-bottom: 8px; color: var(--accent); font-size: 4rem; font-weight: 300; line-height: 1; }
+  h1 { margin-bottom: 12px; color: var(--text-primary); font-size: 1.2rem; font-weight: 600; letter-spacing: -0.01em; }
+  p { margin-bottom: 24px; color: var(--text-secondary); font-size: 0.85rem; }
+  .hint {
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.7rem;
+  }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent); }
+  a:hover { border-bottom-width: 2px; }
+  kbd {
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--bg);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+  }
+  @media (max-width: 520px) {
+    body { padding: 12px; }
+    .card { padding: 30px 24px; }
+    .code { font-size: 3rem; }
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="eyebrow">error · access denied</div>
+  <div class="code">403</div>
+  <h1>Access denied</h1>
+  <p>This path cannot be served. Return to the homepage and use the terminal to browse the blog.</p>
+  <div class="hint">
+    <a href="/">Return to homepage</a> &nbsp;·&nbsp; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> for terminal
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "veterm",
+  "version": "3.0.0",
+  "private": true,
+  "description": "A terminal-native editorial blog engine built with Node.js",
+  "type": "module",
+  "main": "main.js",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node --watch main.js",
+    "start": "node main.js",
+    "test": "node --test",
+    "check": "node scripts/check.js"
+  },
+  "keywords": [
+    "blog",
+    "terminal",
+    "node",
+    "sqlite"
+  ],
+  "license": "MIT"
+}
