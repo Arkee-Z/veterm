@@ -480,7 +480,7 @@ const App = {
     const heroLinks = el("div", "hero-aside-links");
     for (const [label, href] of [
       ["RSS feed", "/rss.xml"],
-      ["GitHub", "https://github.com/Arkee"],
+      ["GitHub", "https://github.com/Arkee-Z"],
       ["About", "/about"],
     ]) {
       const link = el("a", "", label);
