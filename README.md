@@ -41,7 +41,9 @@ The viewer is always visible. The terminal docks above the status bar without ta
 | `/about` | About page |
 | `/post/<slug>` | Legacy short alias |
 
-Old `#/...` bookmarks redirect to the clean path on load. The server falls back to `index.html` for application routes, so refreshing a deep link works.
+### Clean URLs
+
+Public URLs are path-based (`/posts/hello-world`, not `/#/posts/hello-world`). The Node server returns `index.html` for application routes, so direct loads and refreshes work; old `#/...` bookmarks redirect to the clean path on load.
 
 Also generated: `/rss.xml`, `/sitemap.xml`, `/robots.txt`.
 
@@ -354,6 +356,8 @@ sudo git pull
 sudo chown -R www-data:www-data /opt/veterm
 sudo systemctl restart veterm
 ```
+
+The app-shell fallback for clean URLs is implemented in the Node server, so restarting `veterm` is required after pulling a routing change. Caddy/Nginx do not need extra rewrite rules while they are simply reverse-proxying to Node.
 
 Back up the important writable state:
 
