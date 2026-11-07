@@ -12,6 +12,12 @@ A modern, database-backed notebook rebuilt on **Node.js**: an editorial reading 
 
 The viewer is always visible. The terminal docks above the status bar without taking over the page; the editor opens as a focused full-screen workspace. Navigation uses the History API, so public URLs are clean (`/posts/hello-world`, not `/#/posts/hello-world`).
 
+### Languages
+
+The interface ships in English and Chinese. On first visit it follows `navigator.language`; the choice is then stored in `veterm-lang`. Use the topbar language toggle, or force a language with `?lang=zh` / `?lang=en`.
+
+Post and project bodies are **not** machine-translated: they stay in the language you write them in. The i18n layer covers navigation, headings, metadata, search, editor chrome, and terminal chrome.
+
 ## Layout & Routes
 
 ```
@@ -396,6 +402,7 @@ Then run `sudo nginx -t`, reload Nginx, and issue a certificate with `sudo certb
 - **Content**: Markdown + front matter, SQLite index, RSS/sitemap
 - **Database**: SQLite via Node's built-in `node:sqlite`
 - **Frontend**: Vanilla JS + CSS (zero framework)
+- **Languages**: English / 中文 UI, browser detection, topbar toggle (`static/js/i18n.js`)
 - **Cache**: Web Crypto AES-GCM encrypted localStorage
 - **Icons**: Inline SVG
 - **Fonts**: Sarasa Mono SC, LXGW WenKai Mono

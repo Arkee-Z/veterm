@@ -38,8 +38,7 @@ function dateParts(value) {
   return { year: match[1], month: Number(match[2]), day: Number(match[3]) };
 }
 function dateLong(value) {
-  const d = dateParts(value);
-  return d ? `${MONTHS[d.month - 1]} ${String(d.day).padStart(2, "0")}, ${d.year}` : "Undated";
+  return I18n.dateLong(value);
 }
 function dateShort(value) {
   const d = dateParts(value);
@@ -47,7 +46,7 @@ function dateShort(value) {
 }
 function yearOf(value) {
   const d = dateParts(value);
-  return d ? d.year : "Undated";
+  return d ? d.year : I18n.t("common.undated");
 }
 function tagHref(tag) {
   return `/archive/${encodeURIComponent(tag)}`;
@@ -102,6 +101,7 @@ const App = {
   INDEX_TTL: 30 * 1000,
 
   init() {
+    I18n.init();
     this.els = {
       app: $id("app"),
       viewer: $id("viewer-panel"),
@@ -137,6 +137,7 @@ const App = {
     Editor.init();
     Toast.init();
     Search.init();
+    Editor.applyLanguage();
 
     document.addEventListener("click", (event) => this.handleClick(event));
     document.addEventListener("keydown", (event) => this.handleGlobalKeydown(event));
@@ -156,6 +157,7 @@ const App = {
     });
     this.els.viewer.addEventListener("scroll", () => this.scheduleScrollUpdate(), { passive: true });
 
+    this.updateLanguageUI();
     this.updateUserUI();
     this.refreshSession();
     this.getTree().catch(() => {});
@@ -171,13 +173,38 @@ const App = {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", next === "light" ? "#f1ede5" : "#141311");
     document.querySelectorAll('[data-action="theme"]').forEach((btn) => {
-      btn.setAttribute("aria-label", next === "light" ? "Switch to dark theme" : "Switch to light theme");
-      btn.title = next === "light" ? "Switch to dark theme" : "Switch to light theme";
+      const label = I18n.isChinese
+        ? (next === "light" ? "切换到深色主题" : "切换到浅色主题")
+        : (next === "light" ? "Switch to dark theme" : "Switch to light theme");
+      btn.setAttribute("aria-label", label);
+      btn.title = label;
     });
   },
 
   getTheme() {
     return document.documentElement.getAttribute("data-theme") || "dark";
+  },
+
+  updateLanguageUI() {
+    const label = document.getElementById("language-label");
+    if (label) label.textContent = I18n.isChinese ? "EN" : "中文";
+    const button = document.querySelector('[data-action="language"]');
+    if (button) {
+      const text = I18n.t("common.switchLanguage");
+      button.setAttribute("aria-label", text);
+      button.title = text;
+    }
+  },
+
+  toggleLanguage() {
+    I18n.toggle();
+    this.applyTheme(this.getTheme());
+    this.updateLanguageUI();
+    this.updateUserUI();
+    if (typeof Terminal !== "undefined") Terminal.applyLanguage();
+    if (typeof Editor !== "undefined") Editor.applyLanguage();
+    if (typeof Search !== "undefined") Search.applyLanguage();
+    this.handleRoute();
   },
 
   toggleTheme() {
@@ -365,7 +392,7 @@ const App = {
         return data;
       })
       .catch((error) => {
-        if (!this.index) Toast.error(error.message || "Could not load the content index.");
+        if (!this.index) Toast.error(error.message || (I18n.isChinese ? "无法加载内容索引。" : "Could not load the content index."));
         return this.index;
       })
       .finally(() => { this.indexPromise = null; });
@@ -386,7 +413,7 @@ const App = {
         return data;
       })
       .catch((error) => {
-        if (!this.tree) Toast.error(error.message || "Could not load the content tree.");
+        if (!this.tree) Toast.error(error.message || (I18n.isChinese ? "无法加载内容树。" : "Could not load the content tree."));
         return this.tree;
       })
       .finally(() => { this.treePromise = null; });
@@ -427,7 +454,7 @@ const App = {
     return {
       path: page.path,
       slug: page.slug || (page.path || "").split("/").pop()?.replace(/\.md$/i, "") || route.slug || "",
-      title: meta.title || page.title || route.slug || "Untitled",
+      title: meta.title || page.title || route.slug || I18n.t("common.untitled"),
       date: meta.date || page.date || "",
       excerpt: meta.description || page.excerpt || "",
       tags: meta.tags || page.tags || [],
@@ -441,32 +468,32 @@ const App = {
   async showHome() {
     const token = ++this.renderToken;
     this.setProjectMode(false);
-    this.setStatus("Loading…", "loading", "home");
+    this.setStatus(I18n.t("common.loading"), "loading", "home");
     const index = await this.getIndex();
     if (token !== this.renderToken) return;
-    if (!index) return this.showError("Could not load the content index.", { status: 500, path: "home" });
+    if (!index) return this.showError(I18n.isChinese ? "无法加载内容索引。" : "Could not load the content index.", { status: 500, path: "home" });
 
     const page = el("section", "page home-page");
     const hero = el("header", "home-hero");
     const heroMain = el("div", "hero-main");
 
-    const kicker = el("div", "hero-kicker", `issue ${String(index.stats.posts).padStart(2, "0")} · ${new Date().getFullYear()} · written from a terminal`);
+    const kicker = el("div", "hero-kicker", I18n.t("home.kicker", { issue: String(index.stats.posts).padStart(2, "0"), year: new Date().getFullYear() }));
     const title = el("h1", "hero-title");
-    title.innerHTML = "Notes on systems,<br><em>interfaces</em>, and the web.";
-    const lede = el("p", "hero-lede", "I’m Gene Max Zhang — a full-stack engineer building small, deliberate tools. This is a terminal-native notebook about software, typography, and the long way around the web.");
+    title.innerHTML = I18n.t("home.title");
+    const lede = el("p", "hero-lede", I18n.t("home.lede"));
     const actions = el("div", "hero-actions");
-    const archiveBtn = el("a", "button primary", "Read the archive");
+    const archiveBtn = el("a", "button primary", I18n.t("home.readArchive"));
     archiveBtn.href = "/archive";
-    const terminalBtn = el("button", "button", "Open terminal");
+    const terminalBtn = el("button", "button", I18n.t("home.openTerminal"));
     terminalBtn.type = "button";
     terminalBtn.dataset.action = "terminal";
     actions.append(archiveBtn, terminalBtn);
     const stats = el("div", "hero-stats");
     for (const [value, label] of [
-      [index.stats.posts, "posts"],
-      [index.stats.tags, "tags"],
-      [index.stats.projects, "projects"],
-      [index.stats.words.toLocaleString("en-US"), "words"],
+      [index.stats.posts, I18n.t("home.stats.posts")],
+      [index.stats.tags, I18n.t("home.stats.tags")],
+      [index.stats.projects, I18n.t("home.stats.projects")],
+      [index.stats.words.toLocaleString(I18n.isChinese ? "zh-CN" : "en-US"), I18n.t("home.stats.words")],
     ]) {
       const stat = el("div", "hero-stat");
       stat.append(el("strong", "", String(value)), el("span", "", label));
@@ -476,12 +503,12 @@ const App = {
 
     const heroAside = el("aside", "hero-aside");
     const monogram = el("div", "hero-monogram", "GMZ");
-    const note = el("p", "hero-note", "“The terminal is the most honest interface between a developer and their machine. Everything else is decoration.”");
+    const note = el("p", "hero-note", I18n.t("home.quote"));
     const heroLinks = el("div", "hero-aside-links");
     for (const [label, href] of [
-      ["RSS feed", "/rss.xml"],
+      [I18n.t("home.rss"), "/rss.xml"],
       ["GitHub", "https://github.com/Arkee-Z"],
-      ["About", "/about"],
+      [I18n.t("home.about"), "/about"],
     ]) {
       const link = el("a", "", label);
       link.href = href;
@@ -502,25 +529,25 @@ const App = {
     if (latest.length) {
       const list = el("div", "post-list");
       for (const post of latest) list.appendChild(this.renderPostRow(post));
-      main.appendChild(this.renderSectionHead("Latest writing", `${latest.length} notes`, "/archive", list));
+      main.appendChild(this.renderSectionHead(I18n.t("home.latest"), I18n.t("home.notesCount", { count: latest.length }), "/archive", list));
     }
 
     const nowCard = el("div", "side-card");
-    nowCard.appendChild(this.renderSideCardTitle("Now"));
-    nowCard.appendChild(el("p", "", "Building a quieter web with Node.js, SQLite, and a command palette."));
-    nowCard.appendChild(el("span", "now-dot", "Open to small collaborations"));
+    nowCard.appendChild(this.renderSideCardTitle(I18n.t("sidebar.now")));
+    nowCard.appendChild(el("p", "", I18n.t("sidebar.nowText")));
+    nowCard.appendChild(el("span", "now-dot", I18n.t("sidebar.collaboration")));
     aside.appendChild(nowCard);
 
     const quoteCard = el("div", "side-card");
-    quoteCard.appendChild(this.renderSideCardTitle("Marginalia"));
-    const quote = el("p", "side-quote", "A quiet interface is not an empty one. It is a place where the writing is the loudest thing in the room.");
-    quote.appendChild(el("cite", "", "— design notes, 2026"));
+    quoteCard.appendChild(this.renderSideCardTitle(I18n.t("sidebar.marginalia")));
+    const quote = el("p", "side-quote", I18n.t("sidebar.quote"));
+    quote.appendChild(el("cite", "", I18n.t("sidebar.quoteCite")));
     quoteCard.appendChild(quote);
     aside.appendChild(quoteCard);
 
     const colophonCard = el("div", "side-card");
-    colophonCard.appendChild(this.renderSideCardTitle("Colophon"));
-    colophonCard.appendChild(el("p", "", "Node.js, SQLite, and vanilla JavaScript. No framework, no tracker, no external font request. The page is the interface."));
+    colophonCard.appendChild(this.renderSideCardTitle(I18n.t("sidebar.colophon")));
+    colophonCard.appendChild(el("p", "", I18n.t("sidebar.colophonText")));
     aside.appendChild(colophonCard);
 
     layout.append(main, aside);
@@ -529,10 +556,10 @@ const App = {
     this.currentPage = null;
     this.currentArticle = null;
     this.scrollToTop();
-    this.setStatus("Ready", "ready", "home");
+    this.setStatus(I18n.t("common.ready"), "ready", "home");
     this.updateDocumentMeta({
-      title: "Veterm — Terminal Blog Engine",
-      description: "Notes on systems, interfaces, and the web — a terminal-native notebook by Gene Max Zhang.",
+      title: I18n.t("meta.homeTitle"),
+      description: I18n.t("meta.homeDescription"),
       type: "website",
     });
     this.updateProgress(0);
@@ -541,13 +568,13 @@ const App = {
   renderFeatured(post) {
     const article = el("article", "featured");
     const top = el("div", "featured-top");
-    top.append(el("span", "featured-label", "Featured note"), el("span", "featured-number", "01"));
+    top.append(el("span", "featured-label", I18n.t("home.featured")), el("span", "featured-number", "01"));
     const link = el("a");
     link.href = `/posts/${encodeURIComponent(post.slug)}`;
     link.appendChild(el("h2", "featured-title", post.title));
     if (post.excerpt) link.appendChild(el("p", "featured-excerpt", post.excerpt));
     const meta = el("div", "featured-meta");
-    meta.append(el("span", "", dateLong(post.date)), el("span", "", `${post.readingTime} min read`));
+    meta.append(el("span", "", dateLong(post.date)), el("span", "", I18n.t("common.minRead", { count: post.readingTime })));
     link.appendChild(meta);
     article.append(top, link);
     const tags = el("div", "article-tags");
@@ -561,7 +588,7 @@ const App = {
     const head = el("div", "section-head");
     const heading = el("div", "section-title", title);
     heading.appendChild(el("span", "section-count", count));
-    const link = el("a", "section-link", "view all →");
+    const link = el("a", "section-link", I18n.t("common.viewAll"));
     link.href = href || "/archive";
     head.append(heading, link);
     wrap.appendChild(head);
@@ -573,7 +600,7 @@ const App = {
     const head = el("div", "side-card-title");
     head.appendChild(el("span", "", title));
     if (href) {
-      const link = el("a", "", "all →");
+      const link = el("a", "", `${I18n.t("common.all")} →`);
       link.href = href;
       head.appendChild(link);
     }
@@ -583,7 +610,7 @@ const App = {
   renderPostRow(post) {
     const row = el("article", "post-row");
     const date = el("div", "post-date");
-    date.append(el("span", "", dateShort(post.date)), el("br"), el("span", "", `${post.readingTime} min`));
+    date.append(el("span", "", dateShort(post.date)), el("br"), el("span", "", I18n.t("common.minutesShort", { count: post.readingTime })));
     const main = el("div", "post-main");
     const link = el("a", "post-link");
     link.href = `/posts/${encodeURIComponent(post.slug)}`;
@@ -601,18 +628,18 @@ const App = {
   async showArchive(tag = "") {
     const token = ++this.renderToken;
     this.setProjectMode(false);
-    this.setStatus("Loading…", "loading", "archive");
+    this.setStatus(I18n.t("common.loading"), "loading", "archive");
     const index = await this.getIndex();
     if (token !== this.renderToken) return;
-    if (!index) return this.showError("Could not load the archive.", { status: 500, path: "archive" });
+    if (!index) return this.showError(I18n.isChinese ? "无法加载归档。" : "Could not load the archive.", { status: 500, path: "archive" });
 
     this.archiveState = { tag: tag || "", query: "" };
     const page = el("section", "page archive-page");
     const head = el("header", "page-head");
     head.append(
-      el("div", "page-kicker", "index · writing"),
-      el("h1", "page-title", "Archive"),
-      el("p", "page-lede", "Every note, grouped by year. Filter by tag or search the collection in place."),
+      el("div", "page-kicker", I18n.t("archive.kicker")),
+      el("h1", "page-title", I18n.t("archive.title")),
+      el("p", "page-lede", I18n.t("archive.lede")),
     );
     const toolbar = el("div", "archive-toolbar");
     const field = el("label", "search-field");
@@ -620,14 +647,14 @@ const App = {
     const input = document.createElement("input");
     input.type = "search";
     input.id = "archive-search";
-    input.placeholder = "Filter this archive…";
+    input.placeholder = I18n.t("archive.filter");
     input.autocomplete = "off";
     input.value = this.archiveState.query;
     field.appendChild(input);
     toolbar.appendChild(field);
 
     const chips = el("div", "filter-chips");
-    const allChip = el("button", "filter-chip" + (this.archiveState.tag ? "" : " is-active"), "all");
+    const allChip = el("button", "filter-chip" + (this.archiveState.tag ? "" : " is-active"), I18n.t("common.all"));
     allChip.type = "button";
     allChip.dataset.tag = "";
     chips.appendChild(allChip);
@@ -669,12 +696,12 @@ const App = {
     renderList();
 
     this.scrollToTop();
-    this.setStatus("Ready", "ready", "archive");
+    this.setStatus(I18n.t("common.ready"), "ready", "archive");
     this.currentPage = null;
     this.currentArticle = null;
     this.updateDocumentMeta({
-      title: "Archive — Veterm",
-      description: "Every note in the Veterm archive, grouped by year and tag.",
+      title: I18n.t("meta.archiveTitle"),
+      description: I18n.t("meta.archiveDescription"),
       type: "website",
     });
     this.updateProgress(0);
@@ -687,10 +714,11 @@ const App = {
       return `${post.title} ${post.excerpt} ${post.tags.join(" ")} ${post.searchText}`.toLowerCase().includes(query);
     });
     container.replaceChildren();
-    summary.textContent = `${filtered.length} ${filtered.length === 1 ? "entry" : "entries"}${tag ? ` · #${tag}` : ""}${query ? ` · “${query}”` : ""}`;
+    const countLabel = I18n.t(filtered.length === 1 ? "archive.entry" : "archive.entries", { count: filtered.length });
+    summary.textContent = `${countLabel}${tag ? ` · #${tag}` : ""}${query ? ` · “${query}”` : ""}`;
     if (filtered.length === 0) {
       const empty = el("div", "empty-state");
-      empty.append(el("strong", "", "Nothing here."), el("span", "", "Try a different tag or search term."));
+      empty.append(el("strong", "", I18n.t("archive.emptyTitle")), el("span", "", I18n.t("archive.emptyText")));
       container.appendChild(empty);
       return;
     }
@@ -729,17 +757,17 @@ const App = {
   async showTags() {
     const token = ++this.renderToken;
     this.setProjectMode(false);
-    this.setStatus("Loading…", "loading", "tags");
+    this.setStatus(I18n.t("common.loading"), "loading", "tags");
     const index = await this.getIndex();
     if (token !== this.renderToken) return;
-    if (!index) return this.showError("Could not load tags.", { status: 500, path: "tags" });
+    if (!index) return this.showError(I18n.isChinese ? "无法加载标签。" : "Could not load tags.", { status: 500, path: "tags" });
 
     const page = el("section", "page tags-page");
     const head = el("header", "page-head");
     head.append(
-      el("div", "page-kicker", "index · subjects"),
-      el("h1", "page-title", "Tags"),
-      el("p", "page-lede", "A map of the notebook. Each tag is a thread through the archive."),
+      el("div", "page-kicker", I18n.t("tags.kicker")),
+      el("h1", "page-title", I18n.t("tags.title")),
+      el("p", "page-lede", I18n.t("tags.lede")),
     );
     page.appendChild(head);
     const grid = el("div", "tag-grid");
@@ -748,19 +776,19 @@ const App = {
       card.className = "tag-card";
       card.href = tagHref(tag.name);
       card.appendChild(el("span", "tag-card-name", `#${tag.name}`));
-      card.appendChild(el("span", "tag-card-count", `${tag.count} ${tag.count === 1 ? "note" : "notes"}`));
+      card.appendChild(el("span", "tag-card-count", I18n.t(tag.count === 1 ? "tags.note" : "tags.notes", { count: tag.count })));
       grid.appendChild(card);
     }
-    if (index.tags.length === 0) grid.appendChild(el("div", "empty-state", "No tags yet."));
+    if (index.tags.length === 0) grid.appendChild(el("div", "empty-state", I18n.isChinese ? "还没有标签。" : "No tags yet."));
     page.appendChild(grid);
     this.els.content.replaceChildren(page);
-    this.setStatus("Ready", "ready", "tags");
+    this.setStatus(I18n.t("common.ready"), "ready", "tags");
     this.currentPage = null;
     this.currentArticle = null;
     this.scrollToTop();
     this.updateDocumentMeta({
-      title: "Tags — Veterm",
-      description: "Browse Veterm notes by subject and tag.",
+      title: I18n.t("meta.tagsTitle"),
+      description: I18n.t("meta.tagsDescription"),
       type: "website",
     });
     this.updateProgress(0);
@@ -769,17 +797,17 @@ const App = {
   async showProjects() {
     const token = ++this.renderToken;
     this.setProjectMode(false);
-    this.setStatus("Loading…", "loading", "projects");
+    this.setStatus(I18n.t("common.loading"), "loading", "projects");
     const index = await this.getIndex();
     if (token !== this.renderToken) return;
-    if (!index) return this.showError("Could not load projects.", { status: 500, path: "projects" });
+    if (!index) return this.showError(I18n.isChinese ? "无法加载项目。" : "Could not load projects.", { status: 500, path: "projects" });
 
     const page = el("section", "page projects-page");
     const head = el("header", "page-head");
     head.append(
-      el("div", "page-kicker", "index · mounted"),
-      el("h1", "page-title", "Projects"),
-      el("p", "page-lede", "Small experiments, external references, and interactive sandboxes mounted inside the engine."),
+      el("div", "page-kicker", I18n.t("projects.kicker")),
+      el("h1", "page-title", I18n.t("projects.title")),
+      el("p", "page-lede", I18n.t("projects.lede")),
     );
     page.appendChild(head);
     const grid = el("div", "project-grid");
@@ -787,7 +815,7 @@ const App = {
       const card = document.createElement("a");
       card.className = "project-card";
       card.href = `/projects/${encodeURIComponent(project.name)}`;
-      card.appendChild(el("div", "project-card-index", `PROJECT ${String(i + 1).padStart(2, "0")}`));
+      card.appendChild(el("div", "project-card-index", I18n.t("projects.index", { number: String(i + 1).padStart(2, "0") })));
       card.appendChild(el("h2", "project-card-title", project.title));
       if (project.description) card.appendChild(el("p", "project-card-desc", project.description));
       const foot = el("div", "project-card-foot");
@@ -796,16 +824,16 @@ const App = {
       card.appendChild(foot);
       grid.appendChild(card);
     });
-    if (index.projects.length === 0) grid.appendChild(el("div", "empty-state", "No projects mounted yet."));
+    if (index.projects.length === 0) grid.appendChild(el("div", "empty-state", I18n.isChinese ? "还没有挂载项目。" : "No projects mounted yet."));
     page.appendChild(grid);
     this.els.content.replaceChildren(page);
-    this.setStatus("Ready", "ready", "projects");
+    this.setStatus(I18n.t("common.ready"), "ready", "projects");
     this.currentPage = null;
     this.currentArticle = null;
     this.scrollToTop();
     this.updateDocumentMeta({
-      title: "Projects — Veterm",
-      description: "Interactive projects and experiments mounted in Veterm.",
+      title: I18n.t("meta.projectsTitle"),
+      description: I18n.t("meta.projectsDescription"),
       type: "website",
     });
     this.updateProgress(0);
@@ -815,7 +843,7 @@ const App = {
   async showPost(route) {
     const token = ++this.renderToken;
     this.setProjectMode(false);
-    this.setStatus("Loading…", "loading", route.path || route.slug);
+    this.setStatus(I18n.t("common.loading"), "loading", route.path || route.slug);
     this.renderLoading(`~/${route.path || route.slug}`);
 
     const index = await this.getIndex();
@@ -844,7 +872,7 @@ const App = {
   async showAbout() {
     const token = ++this.renderToken;
     this.setProjectMode(false);
-    this.setStatus("Loading…", "loading", "about");
+    this.setStatus(I18n.t("common.loading"), "loading", "about");
     this.renderLoading("~/about.md");
     const page = await API.renderFile("about.md");
     if (token !== this.renderToken) return;
@@ -856,8 +884,8 @@ const App = {
     const sheet = el("article", "about-sheet");
     const header = el("header", "article-header");
     header.append(
-      el("div", "article-kicker", "about · colophon"),
-      el("h1", "article-title", meta.title || page.title || "About"),
+      el("div", "article-kicker", I18n.t("about.kicker")),
+      el("h1", "article-title", meta.title || page.title || I18n.t("nav.about")),
     );
     if (meta.description) header.appendChild(el("p", "article-deck", meta.description));
     const metaRow = el("div", "article-meta");
@@ -877,7 +905,7 @@ const App = {
 
     const aside = el("aside", "about-aside");
     const contact = el("div", "about-card");
-    contact.appendChild(el("h3", "", "Elsewhere"));
+    contact.appendChild(el("h3", "", I18n.t("about.elsewhere")));
     const list = el("div", "contact-list");
     if (meta.location) {
       const row = el("span");
@@ -905,13 +933,13 @@ const App = {
     aside.appendChild(contact);
 
     const colophon = el("div", "about-card");
-    colophon.appendChild(el("h3", "", "Colophon"));
-    colophon.appendChild(el("p", "", "Veterm is built with Node.js, SQLite, and vanilla JavaScript. No framework, no tracker, no external font request. Typography uses the reader's own serif face; labels and code use a local monospace stack."));
+    colophon.appendChild(el("h3", "", I18n.t("about.colophon")));
+    colophon.appendChild(el("p", "", I18n.t("about.colophonText")));
     aside.appendChild(colophon);
 
     const availability = el("div", "about-card");
-    availability.appendChild(el("h3", "", "Availability"));
-    availability.appendChild(el("p", "now-dot", "Open to small collaborations"));
+    availability.appendChild(el("h3", "", I18n.t("about.availability")));
+    availability.appendChild(el("p", "now-dot", I18n.t("about.open")));
     aside.appendChild(availability);
 
     layout.appendChild(aside);
@@ -920,10 +948,10 @@ const App = {
     this.currentPage = page;
     this.currentArticle = null;
     this.scrollToTop();
-    this.setStatus("Ready", "ready", "about.md");
+    this.setStatus(I18n.t("common.ready"), "ready", "about.md");
     this.updateDocumentMeta({
-      title: `${meta.title || "About"} — Veterm`,
-      description: meta.description || "About Gene Max Zhang and the Veterm notebook.",
+      title: `${meta.title || I18n.t("nav.about")} — Veterm`,
+      description: I18n.t("meta.aboutDescription"),
       type: "profile",
     });
     this.updateProgress(0);
@@ -935,15 +963,16 @@ const App = {
     const main = el("div", "article-main");
     const sheet = el("article", "article-sheet");
     const header = el("header", "article-header");
-    const kicker = el("div", "article-kicker", `${route.kind === "project" ? "project" : "note"} · ${yearOf(post.date)}`);
-    const title = el("h1", "article-title", post.title || page.title || "Untitled");
+    const kicker = el("div", "article-kicker", I18n.t(route.kind === "project" ? "article.project" : "article.note", { year: yearOf(post.date) }));
+    const title = el("h1", "article-title", post.title || page.title || I18n.t("common.untitled"));
     const deck = post.excerpt ? el("p", "article-deck", post.excerpt) : null;
     const meta = el("div", "article-meta");
-    const dateLabel = route.kind === "project" ? "Updated " : "";
     meta.append(
-      el("span", "", `${dateLabel}${dateLong(post.date)}`),
-      el("span", "", `${post.readingTime || 1} min read`),
-      el("span", "", `${(post.tags || []).length} tags`),
+      el("span", "", route.kind === "project"
+        ? I18n.t("article.updated", { date: dateLong(post.date) })
+        : dateLong(post.date)),
+      el("span", "", I18n.t("common.minRead", { count: post.readingTime || 1 })),
+      el("span", "", I18n.t("common.tagsCount", { count: (post.tags || []).length })),
     );
     const tags = el("div", "article-tags");
     for (const tag of post.tags || []) tags.appendChild(tagNode(tag));
@@ -958,7 +987,7 @@ const App = {
     this.enhanceProse(prose);
 
     const foot = el("footer", "article-foot");
-    foot.append(el("span", "end-mark", "— END —"));
+    foot.append(el("span", "end-mark", I18n.t("article.end")));
     for (const tag of post.tags || []) foot.appendChild(tagNode(tag));
     sheet.append(header, prose, foot);
 
@@ -966,8 +995,8 @@ const App = {
     const headings = [...prose.querySelectorAll("h2, h3")].filter((heading) => heading.id);
     if (headings.length) {
       const toc = el("nav", "toc");
-      toc.setAttribute("aria-label", "Table of contents");
-      toc.appendChild(el("div", "toc-title", "On this page"));
+      toc.setAttribute("aria-label", I18n.t("article.onThisPage"));
+      toc.appendChild(el("div", "toc-title", I18n.t("article.onThisPage")));
       const list = el("div", "toc-list");
       for (const heading of headings) {
         const link = document.createElement("button");
@@ -985,7 +1014,7 @@ const App = {
       aside.appendChild(toc);
 
       const mobile = el("details", "toc-mobile");
-      mobile.appendChild(el("summary", "", "Contents"));
+      mobile.appendChild(el("summary", "", I18n.t("article.contents")));
       const mobileList = el("div", "toc-list");
       for (const heading of headings) {
         const link = document.createElement("a");
@@ -1003,16 +1032,18 @@ const App = {
     }
 
     const info = el("div", "article-aside-card");
-    info.appendChild(el("strong", "", "Filed under"));
+    info.appendChild(el("strong", "", I18n.t("article.filedUnder")));
     const infoTags = el("div", "tag-cloud");
     for (const tag of post.tags || []) infoTags.appendChild(tagNode(tag));
     info.appendChild(infoTags);
     const infoMeta = el("div", "article-aside-card");
     infoMeta.append(
-      el("strong", "", "Details"),
-      el("span", "", `${route.kind === "project" ? "Updated" : "Published"} ${dateLong(post.date)}`),
+      el("strong", "", I18n.t("article.details")),
+      el("span", "", route.kind === "project"
+        ? I18n.t("article.updated", { date: dateLong(post.date) })
+        : I18n.t("article.published", { date: dateLong(post.date) })),
       document.createElement("br"),
-      el("span", "", `Approx. ${post.readingTime || 1} minute read`),
+      el("span", "", I18n.t("article.approxRead", { count: post.readingTime || 1 })),
     );
     aside.append(info, infoMeta);
     layout.append(main, aside);
@@ -1036,10 +1067,10 @@ const App = {
       this.updateBreadcrumb(this.route);
     }
     this.scrollToTop();
-    this.setStatus("Ready", "ready", post.path);
+    this.setStatus(I18n.t("common.ready"), "ready", post.path);
     this.updateDocumentMeta({
       title: `${post.title} — Veterm`,
-      description: post.excerpt || `${post.title} — a note in the Veterm notebook.`,
+      description: post.excerpt || `${post.title} — ${I18n.isChinese ? "Veterm 笔记本中的一篇笔记。" : "a note in the Veterm notebook."}`,
       type: "article",
       published: post.date,
       tags: post.tags,
@@ -1057,10 +1088,10 @@ const App = {
     const older = index < posts.length - 1 ? posts[index + 1] : null;
     if (!newer && !older) return null;
     const nav = el("nav", "post-nav");
-    nav.setAttribute("aria-label", "Previous and next posts");
+    nav.setAttribute("aria-label", I18n.isChinese ? "上一篇和下一篇" : "Previous and next posts");
     for (const [item, label, className] of [
-      [older, "Previous", ""],
-      [newer, "Next", "next"],
+      [older, I18n.t("article.previous"), ""],
+      [newer, I18n.t("article.next"), "next"],
     ]) {
       if (!item) continue;
       const link = document.createElement("a");
@@ -1089,7 +1120,7 @@ const App = {
     if (scored.length === 0) return null;
     const section = el("section", "related");
     const head = el("div", "section-head");
-    head.append(el("div", "section-title", "Related notes"), el("span", "section-count", "from the archive"));
+    head.append(el("div", "section-title", I18n.t("article.related")), el("span", "section-count", I18n.t("article.fromArchive")));
     section.appendChild(head);
     const grid = el("div", "related-grid");
     for (const { item } of scored) {
@@ -1113,15 +1144,15 @@ const App = {
       const langClass = [...(code?.classList || [])].find((name) => name.startsWith("language-"));
       const lang = langClass ? langClass.slice("language-".length) : "";
       if (lang) pre.dataset.lang = lang;
-      const button = el("button", "code-copy", "copy");
+      const button = el("button", "code-copy", I18n.t("common.copy"));
       button.type = "button";
       button.addEventListener("click", async (event) => {
         event.preventDefault();
         event.stopPropagation();
         const text = code ? code.textContent : pre.textContent;
-        await this.copyText(text, "Code copied");
-        button.textContent = "copied";
-        setTimeout(() => { button.textContent = "copy"; }, 1200);
+        await this.copyText(text, I18n.t("common.codeCopied"));
+        button.textContent = I18n.t("common.codeCopied");
+        setTimeout(() => { button.textContent = I18n.t("common.copy"); }, 1400);
       });
       pre.appendChild(button);
     });
@@ -1154,7 +1185,7 @@ const App = {
   async showProject(name) {
     const token = ++this.renderToken;
     this.setProjectMode(false);
-    this.setStatus("Loading…", "loading", `projects/${name}`);
+    this.setStatus(I18n.t("common.loading"), "loading", `projects/${name}`);
     this.renderLoading(`~/projects/${name}`);
     const [index, result] = await Promise.all([this.getIndex(), API.getProject(name)]);
     if (token !== this.renderToken) return;
@@ -1188,10 +1219,10 @@ const App = {
       }, { kind: "project", name }, { related: false, nav: false });
     }
     this.updateBreadcrumb({ kind: "project", name });
-    this.setStatus("Ready", "ready", `projects/${name}`);
+    this.setStatus(I18n.t("common.ready"), "ready", `projects/${name}`);
     this.updateDocumentMeta({
       title: `${project.title} — Veterm`,
-      description: project.description || `Project ${name} in Veterm.`,
+      description: project.description || (I18n.isChinese ? `Veterm 中的项目 ${name}。` : `Project ${name} in Veterm.`),
       type: "article",
     });
     this.updateProgress(0);
@@ -1202,7 +1233,7 @@ const App = {
     const sheet = el("article", "article-sheet");
     const header = el("header", "article-header");
     header.append(
-      el("div", "article-kicker", "project · external"),
+      el("div", "article-kicker", I18n.t("project.external")),
       el("h1", "article-title", project.title),
     );
     if (project.description) header.appendChild(el("p", "article-deck", project.description));
@@ -1216,14 +1247,14 @@ const App = {
     open.href = page.link || project.url || "#";
     open.target = "_blank";
     open.rel = "noopener noreferrer";
-    open.innerHTML = `Open link ${ICONS.external}`;
-    const copy = el("button", "button", "Copy URL");
+    open.innerHTML = `${I18n.t("common.openLink")} ${ICONS.external}`;
+    const copy = el("button", "button", I18n.t("common.copyUrl"));
     copy.type = "button";
     copy.addEventListener("click", () => this.copyText(page.link || project.url || ""));
     const back = document.createElement("a");
     back.className = "button is-quiet";
     back.href = "/projects";
-    back.textContent = "All projects";
+    back.textContent = I18n.t("common.allProjects");
     actions.append(open, copy, back);
     sheet.append(header, box, actions);
     pageEl.appendChild(sheet);
@@ -1232,7 +1263,7 @@ const App = {
     this.currentArticle = null;
     this.scrollToTop();
     this.updateProgress(0);
-    this.setStatus("Ready", "ready", `projects/${project.name}`);
+    this.setStatus(I18n.t("common.ready"), "ready", `projects/${project.name}`);
   },
 
   showProjectHtml(page, name, route) {
@@ -1248,14 +1279,14 @@ const App = {
     const previous = this.els.projectFrame;
     const iframe = previous.cloneNode(false);
     iframe.removeAttribute("srcdoc");
-    iframe.title = `${this.currentProject?.project?.title || name} — project preview`;
+    iframe.title = `${this.currentProject?.project?.title || name} — ${I18n.t("project.preview")}`;
     previous.replaceWith(iframe);
     this.els.projectFrame = iframe;
-    iframe.srcdoc = page.html || page.content || "<!doctype html><title>Empty project</title>";
+    iframe.srcdoc = page.html || page.content || `<!doctype html><title>${I18n.t("project.empty")}</title>`;
     this.currentProject = { ...(this.currentProject || {}), name, page, route: route || { kind: "project", name } };
     this.currentArticle = null;
     this.updateProgress(0);
-    this.setStatus("Ready", "ready", `projects/${name}`);
+    this.setStatus(I18n.t("common.ready"), "ready", `projects/${name}`);
   },
 
   setProjectMode(enabled) {
@@ -1272,7 +1303,7 @@ const App = {
 
   async reloadProject() {
     if (!this.currentProject) return;
-    Toast.info("Reloading project…", 1200);
+    Toast.info(I18n.t("toast.reloadingProject"), 1200);
     const { name, page, route } = this.currentProject;
     if (route && route.kind === "page") await this.showPage(page.filePath || page.path, route);
     else await this.showProject(name);
@@ -1291,7 +1322,7 @@ const App = {
   async showPage(path, route) {
     const token = ++this.renderToken;
     this.setProjectMode(false);
-    this.setStatus("Loading…", "loading", path);
+    this.setStatus(I18n.t("common.loading"), "loading", path);
     this.renderLoading(path);
     const result = await API.renderFile(path);
     if (token !== this.renderToken) return;
@@ -1312,18 +1343,18 @@ const App = {
   async showDirectory(route) {
     const token = ++this.renderToken;
     this.setProjectMode(false);
-    this.setStatus("Loading…", "loading", route.path);
+    this.setStatus(I18n.t("common.loading"), "loading", route.path);
     const tree = await this.getTree();
     if (token !== this.renderToken) return;
-    if (!tree) return this.showError("Could not load the content tree.", { status: 500, path: route.path });
+    if (!tree) return this.showError(I18n.isChinese ? "无法加载内容树。" : "Could not load the content tree.", { status: 500, path: route.path });
     const dir = route.path;
     const children = (tree.entries || []).filter((entry) => this.parentOf(entry.path) === dir);
     const page = el("section", "page");
     const head = el("header", "page-head");
     head.append(
-      el("div", "page-kicker", "directory"),
+      el("div", "page-kicker", I18n.t("directory.kicker")),
       el("h1", "page-title", `~/${dir}/`),
-      el("p", "page-lede", `${children.length} entries in this directory.`),
+      el("p", "page-lede", I18n.t("directory.entries", { count: children.length })),
     );
     page.appendChild(head);
     const list = el("div", "archive-list");
@@ -1338,12 +1369,12 @@ const App = {
       );
       list.appendChild(link);
     }
-    if (!children.length) list.appendChild(el("div", "empty-state", "(empty directory)"));
+    if (!children.length) list.appendChild(el("div", "empty-state", I18n.t("directory.empty")));
     page.appendChild(list);
     this.els.content.replaceChildren(page);
-    this.setStatus("Ready", "ready", dir + "/");
+    this.setStatus(I18n.t("common.ready"), "ready", dir + "/");
     this.currentPage = null;
-    this.updateDocumentMeta({ title: `${dir} — Veterm`, description: `Directory ${dir}`, type: "website" });
+    this.updateDocumentMeta({ title: `${dir} — Veterm`, description: I18n.t("directory.description", { path: dir }), type: "website" });
     this.scrollToTop();
     this.updateProgress(0);
   },
@@ -1362,13 +1393,13 @@ const App = {
       if (tags.length) {
         for (const tag of tags) this.els.sidebarTags.appendChild(tagNode(tag.name, tag.count));
       } else {
-        this.els.sidebarTags.appendChild(el("span", "muted", "No tags yet."));
+        this.els.sidebarTags.appendChild(el("span", "muted", I18n.t("sidebar.noTags")));
       }
     }
     if (this.els.sidebarProjects) {
       this.els.sidebarProjects.replaceChildren();
       const projects = index?.projects || [];
-      if (!projects.length) this.els.sidebarProjects.appendChild(el("span", "muted", "No projects mounted."));
+      if (!projects.length) this.els.sidebarProjects.appendChild(el("span", "muted", I18n.t("sidebar.noProjects")));
       for (const project of projects.slice(0, 4)) {
         const link = el("a", "mini-project");
         link.href = `/projects/${encodeURIComponent(project.name)}`;
@@ -1382,8 +1413,8 @@ const App = {
     }
     if (this.els.sidebarGenerated) {
       this.els.sidebarGenerated.textContent = index?.stats?.latestDate
-        ? `latest ${dateShort(index.stats.latestDate)}`
-        : "awaiting index";
+        ? `${I18n.t("sidebar.latest")} ${dateShort(index.stats.latestDate)}`
+        : I18n.t("sidebar.awaiting");
     }
   },
 
@@ -1445,22 +1476,22 @@ const App = {
     if (route.kind === "home") return;
     sep();
     if (route.kind === "archive") {
-      addLink("archive", "/archive");
-      if (route.tag) { sep(); current(`#${route.tag}`); } else current("all");
-    } else if (route.kind === "tags") current("tags");
-    else if (route.kind === "projects") current("projects");
-    else if (route.kind === "about") current("about");
+      addLink(I18n.t("nav.archive").toLowerCase(), "/archive");
+      if (route.tag) { sep(); current(`#${route.tag}`); } else current(I18n.t("common.all"));
+    } else if (route.kind === "tags") current(I18n.t("nav.tags").toLowerCase());
+    else if (route.kind === "projects") current(I18n.t("nav.projects").toLowerCase());
+    else if (route.kind === "about") current(I18n.t("nav.about").toLowerCase());
     else if (route.kind === "project") {
-      addLink("projects", "/projects");
+      addLink(I18n.t("nav.projects").toLowerCase(), "/projects");
       sep();
       current(route.name);
     } else if (route.kind === "post") {
-      addLink("archive", "/archive");
+      addLink(I18n.t("nav.archive").toLowerCase(), "/archive");
       sep();
-      current(route.title || this.currentPage?.title || route.slug || "note");
+      current(route.title || this.currentPage?.title || route.slug || (I18n.isChinese ? "笔记" : "note"));
     } else if (route.kind === "dir") current(route.path + "/");
     else {
-      addLink("archive", "/archive");
+      addLink(I18n.t("nav.archive").toLowerCase(), "/archive");
       sep();
       current(route.path || "");
     }
@@ -1504,11 +1535,11 @@ const App = {
 
   restoreDocumentMeta() {
     if (this._lastMeta) this.updateDocumentMeta(this._lastMeta);
-    else this.updateDocumentMeta({ title: "Veterm — Terminal Blog Engine", description: "A terminal-native notebook.", type: "website" });
+    else this.updateDocumentMeta({ title: I18n.t("meta.homeTitle"), description: I18n.t("meta.homeDescription"), type: "website" });
   },
 
   updateUserUI() {
-    const name = this.session.loggedIn ? this.session.username : "visitor";
+    const name = this.session.loggedIn ? this.session.username : (I18n.isChinese ? "访客" : "visitor");
     this.els.statusUser.textContent = name;
     this.els.statusUser.classList.toggle("is-admin", this.session.group === "admin");
     if (this.els.sidebarUser) {
@@ -1516,10 +1547,12 @@ const App = {
       this.els.sidebarUser.classList.toggle("is-admin", this.session.group === "admin");
     }
     this.els.statusHint.textContent = this.session.group === "admin"
-      ? "ctrl shift e editor"
-      : "ctrl shift p terminal";
+      ? I18n.t("status.adminHint")
+      : I18n.t("status.hint");
     document.querySelectorAll(".js-editor-btn").forEach((btn) => {
-      btn.title = this.session.group === "admin" ? "Admin editor (Ctrl+Shift+E)" : "Admin editor — sign in through the terminal";
+      btn.title = this.session.group === "admin"
+        ? (I18n.isChinese ? "管理编辑器（Ctrl+Shift+E）" : "Admin editor (Ctrl+Shift+E)")
+        : (I18n.isChinese ? "管理编辑器——请先在终端登录" : "Admin editor — sign in through the terminal");
       btn.classList.toggle("is-locked", this.session.group !== "admin");
     });
     Terminal.updateUser(this.session);
@@ -1551,7 +1584,9 @@ const App = {
 
   async handleAuthChange() {
     await this.refreshSession();
-    Toast.success(this.session.loggedIn ? `Signed in as ${this.session.username}` : "Signed out");
+    Toast.success(this.session.loggedIn
+      ? (I18n.isChinese ? `已登录为 ${this.session.username}` : `Signed in as ${this.session.username}`)
+      : (I18n.isChinese ? "已退出登录" : "Signed out"));
   },
 
   setStatus(text, kind = "ready", path = "") {
@@ -1634,7 +1669,7 @@ const App = {
     this.closeSidebar();
     if (typeof Search !== "undefined") Search.close();
     if (!this.session.loggedIn || this.session.group !== "admin") {
-      Toast.show("Admin login required. Use `login admin <password>` in the terminal.", { kind: "info", duration: 3800 });
+      Toast.show(I18n.t("toast.loginRequired"), { kind: "info", duration: 3800 });
       if (!this.terminalOpen) this.openTerminal();
       setTimeout(() => Terminal.prefill("login admin "), 80);
       return false;
@@ -1672,7 +1707,7 @@ const App = {
 
   openSearch() {
     if (this.editorOpen) {
-      Toast.info("Close the editor to search.");
+      Toast.info(I18n.t("toast.closeEditorSearch"));
       return;
     }
     if (window.innerWidth <= 900 && this.terminalOpen) this.closeTerminal();
@@ -1750,6 +1785,7 @@ const App = {
       const action = actionEl.dataset.action;
       if (action === "sidebar") this.toggleSidebar();
       else if (action === "sidebar-close") this.closeSidebar();
+      else if (action === "language") this.toggleLanguage();
       else if (action === "search") this.openSearch();
       else if (action === "search-close") Search.close();
       else if (action === "theme") this.toggleTheme();
@@ -1790,7 +1826,7 @@ const App = {
   },
 
   // ------------------------------------------------------------------ helpers
-  async copyText(text, successMessage = "Copied to clipboard") {
+  async copyText(text, successMessage = I18n.t("common.copied")) {
     if (!text) return;
     try {
       if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
@@ -1806,7 +1842,7 @@ const App = {
       }
       Toast.success(successMessage);
     } catch {
-      Toast.error("Could not copy to clipboard");
+      Toast.error(I18n.isChinese ? "无法复制到剪贴板" : "Could not copy to clipboard");
     }
   },
 
@@ -1850,15 +1886,15 @@ const App = {
     this.setProjectMode(false);
     const card = el("div", "state-card error-card");
     const code = el("div", "state-code", options.status === 404 ? "404" : options.status === 403 ? "403" : "!");
-    const title = el("h1", "", options.status === 404 ? "Page not found" : "Something went wrong");
-    const text = el("p", "", message || "The page could not be loaded.");
+    const title = el("h1", "", options.status === 404 ? I18n.t("error.notFound") : I18n.t("error.generic"));
+    const text = el("p", "", message || I18n.t("error.message"));
     const actions = el("div", "state-actions");
-    const retry = el("button", "button", "Retry");
+    const retry = el("button", "button", I18n.t("common.retry"));
     retry.type = "button";
     retry.dataset.action = "retry";
-    const home = el("a", "button", "Back home");
+    const home = el("a", "button", I18n.t("common.backHome"));
     home.href = "/";
-    const terminal = el("button", "button", "Open terminal");
+    const terminal = el("button", "button", I18n.t("common.openTerminal"));
     terminal.type = "button";
     terminal.dataset.action = "terminal";
     actions.append(retry, home, terminal);
@@ -1866,8 +1902,8 @@ const App = {
     this.els.content.replaceChildren(card);
     this.scrollToTop();
     this.currentArticle = null;
-    this.setStatus("Error", "error", options.path || "");
-    this.updateDocumentMeta({ title: "Error — Veterm", description: "The requested page could not be loaded.", type: "website" });
+    this.setStatus(I18n.t("common.error"), "error", options.path || "");
+    this.updateDocumentMeta({ title: I18n.t("meta.errorTitle"), description: I18n.t("meta.errorDescription"), type: "website" });
   },
 };
 

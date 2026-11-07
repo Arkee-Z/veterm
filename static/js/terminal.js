@@ -189,7 +189,7 @@ const Terminal = {
 
   updateUser(session) {
     if (!this.badge) return;
-    const name = session && session.loggedIn ? session.username : "visitor";
+    const name = session && session.loggedIn ? session.username : I18n.t("terminal.guest");
     this.badge.textContent = name;
     this.badge.classList.toggle(
       "is-admin",
@@ -197,6 +197,10 @@ const Terminal = {
     );
     const welcome = document.getElementById("welcome-user");
     if (welcome) welcome.textContent = name;
+  },
+
+  applyLanguage() {
+    this.updateUser(App.session);
   },
 
   // ------------------------------------------------------------------ input
@@ -530,7 +534,7 @@ const Terminal = {
       return;
     }
     if (lower === "exit" || lower === "quit") {
-      this.printLine("Bye!", "output-line muted");
+      this.printLine(I18n.t("terminal.bye"), "output-line muted");
       setTimeout(() => App.closeTerminal(), 180);
       return;
     }
@@ -577,7 +581,7 @@ const Terminal = {
         : (result.filePath || "about.md");
       await App.go(target);
       if (!failed) {
-        this.printLine(`Opened ${result.projectName || result.filePath || "page"}`, "output-line muted");
+        this.printLine(I18n.t("terminal.opened", { path: result.projectName || result.filePath || "page" }), "output-line muted");
         this.closeOnMobile();
       }
     } else if (result.action === "goto_link") {
@@ -585,21 +589,21 @@ const Terminal = {
         ? "projects/" + result.projectName
         : (result.filePath || "about.md");
       await App.go(target);
-      this.printLine(`Opened link ${result.link}`, "output-line muted");
+      this.printLine(I18n.t("terminal.openedLink", { url: result.link }), "output-line muted");
       this.closeOnMobile();
     } else if (result.action === "goto_home") {
       await App.go("home");
-      this.printLine("Returned home.", "output-line muted");
+      this.printLine(I18n.t("terminal.returnedHome"), "output-line muted");
       this.closeOnMobile();
     } else if (result.action === "archive" || result.action === "tags") {
       await App.go(result.action);
-      this.printLine(result.output || `Opened ${result.action}.`, "output-line muted");
+      this.printLine(result.output || I18n.t("terminal.opened", { path: result.action }), "output-line muted");
       this.closeOnMobile();
     } else if (result.action === "search") {
       if (window.matchMedia("(max-width: 900px)").matches) App.closeTerminal();
       Search.open(result.query || "");
     } else if (result.action === "edit") {
-      this.printLine(`Editing ${result.filePath}`, "output-line muted");
+      this.printLine(I18n.t("terminal.editing", { path: result.filePath }), "output-line muted");
       App.closeTerminal();
       App.openEditor(result.filePath, {
         source: result.source,
@@ -608,7 +612,7 @@ const Terminal = {
       });
     } else if (result.action === "theme") {
       App.toggleTheme();
-      this.printLine(`Theme: ${App.getTheme()}`, "output-line");
+      this.printLine(I18n.t("terminal.theme", { theme: App.getTheme() }), "output-line");
     } else if (result.close) {
       setTimeout(() => App.closeTerminal(), 160);
     } else if (result.clear) {

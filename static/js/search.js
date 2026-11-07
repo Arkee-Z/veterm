@@ -60,7 +60,7 @@ const Search = {
 
   async open(initialQuery = "") {
     if (App.editorOpen) {
-      Toast.info("Close the editor to search.");
+      Toast.info(I18n.isChinese ? "请先关闭编辑器再搜索。" : "Close the editor to search.");
       return;
     }
     if (!App.index) await App.getIndex();
@@ -94,6 +94,10 @@ const Search = {
     if (this.isOpen) this.render();
   },
 
+  applyLanguage() {
+    if (this.isOpen) this.render();
+  },
+
   handleKeydown(event) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
@@ -122,7 +126,7 @@ const Search = {
         results.push({
           type: "post",
           title: post.title,
-          meta: `${dateLong(post.date)} · ${post.readingTime} min`,
+          meta: `${dateLong(post.date)} · ${I18n.t("common.minutesShort", { count: post.readingTime })}`,
           excerpt: post.excerpt,
           tags: post.tags,
           route: `posts/${post.slug}`,
@@ -144,7 +148,7 @@ const Search = {
         results.push({
           type: "tag",
           title: `#${tag.name}`,
-          meta: `${tag.count} notes`,
+          meta: I18n.t("tags.notes", { count: tag.count }),
           excerpt: "",
           tags: [],
           route: `archive/${tag.name}`,
@@ -163,7 +167,7 @@ const Search = {
       results.push({
         type: "post",
         title: post.title,
-        meta: `${dateLong(post.date)} · ${post.readingTime} min`,
+        meta: `${dateLong(post.date)} · ${I18n.t("common.minutesShort", { count: post.readingTime })}`,
         excerpt: post.excerpt,
         tags: post.tags,
         route: `posts/${post.slug}`,
@@ -192,7 +196,7 @@ const Search = {
       results.push({
         type: "tag",
         title: `#${tag.name}`,
-        meta: `${tag.count} notes`,
+        meta: I18n.t("tags.notes", { count: tag.count }),
         excerpt: "",
         tags: [],
         route: `archive/${tag.name}`,
@@ -216,9 +220,11 @@ const Search = {
     if (!this.results.length) {
       const empty = document.createElement("div");
       empty.className = "search-empty";
-      empty.innerHTML = `<strong>No matches</strong><span>Try a title, a tag, or a broader word.</span>`;
+      empty.innerHTML = `<strong>${I18n.t("search.noMatches")}</strong><span>${I18n.t("search.try")}</span>`;
       this.els.results.appendChild(empty);
-      this.els.count.textContent = query ? `No results for “${query}”` : "Start typing";
+      this.els.count.textContent = query
+        ? I18n.t("search.noResultsFor", { query })
+        : I18n.t("search.startTyping");
       return;
     }
 
@@ -230,7 +236,7 @@ const Search = {
       link.setAttribute("role", "option");
       link.setAttribute("aria-selected", index === this.active ? "true" : "false");
       link.innerHTML = `
-        <span class="search-result-kind"><span class="search-result-kind-badge">${result.type}</span><span>${result.meta || ""}</span></span>
+        <span class="search-result-kind"><span class="search-result-kind-badge">${I18n.t(`search.kind.${result.type}`)}</span><span>${result.meta || ""}</span></span>
         <span class="search-result-title"></span>
         ${result.excerpt ? '<span class="search-result-excerpt"></span>' : ""}
         <span class="search-result-meta"></span>`;
@@ -246,7 +252,9 @@ const Search = {
       link.addEventListener("mouseenter", () => this.setActive(index, false));
       this.els.results.appendChild(link);
     });
-    this.els.count.textContent = `${this.results.length} ${this.results.length === 1 ? "result" : "results"}${query ? ` for “${query}”` : ""}`;
+    this.els.count.textContent = query
+      ? I18n.t(this.results.length === 1 ? "search.resultFor" : "search.resultsFor", { count: this.results.length, query })
+      : I18n.t(this.results.length === 1 ? "search.result" : "search.results", { count: this.results.length });
   },
 
   setActive(index, scroll = true) {

@@ -130,7 +130,7 @@ const Editor = {
     await this.refreshFileTree();
     if (filePath) {
       if (this.currentFile && this.dirty && this.currentFile !== filePath) {
-        if (!confirm("Discard unsaved changes and open another file?")) return;
+        if (!confirm(I18n.t("editor.discard"))) return;
         this.dirty = false;
       }
       await this.openFile(filePath, options);
@@ -141,8 +141,8 @@ const Editor = {
     }
     this.overlay.classList.remove("sidebar-open");
     document.title = this.currentFile
-      ? `Editing ${this.currentFile} — Veterm`
-      : "Editor — Veterm";
+      ? I18n.t("editor.editingTitle", { path: this.currentFile })
+      : I18n.t("editor.title");
   },
 
   async openFile(filePath, options = {}) {
@@ -150,7 +150,7 @@ const Editor = {
       this.currentFile && this.dirty && this.currentFile !== filePath &&
       !options.source
     ) {
-      if (!confirm("Discard unsaved changes and open another file?")) return;
+      if (!confirm(I18n.t("editor.discard"))) return;
     }
 
     let content = options.source;
@@ -194,7 +194,7 @@ const Editor = {
     this.dirty = false;
     this.isNew = false;
     this.textarea.value = "";
-    this.filenameEl.textContent = "No file selected";
+    this.filenameEl.textContent = I18n.t("editor.noFile");
     this.updateTypeBadge();
     this.updateDirtyUI();
     this.updateStats();
@@ -245,14 +245,14 @@ const Editor = {
     if (!this.currentFile || this.saving) return;
     this.saving = true;
     this.saveBtn.disabled = true;
-    this.saveBtn.querySelector("span").textContent = "Saving…";
+    this.saveBtn.querySelector("span").textContent = I18n.t("editor.saving");
 
     const result = await API.saveFile(this.currentFile, this.textarea.value);
     this.saving = false;
-    this.saveBtn.querySelector("span").textContent = "Save";
+    this.saveBtn.querySelector("span").textContent = I18n.t("editor.save");
 
     if (result.error || !result.success) {
-      Toast.error(result.error || "Could not save the file.");
+      Toast.error(result.error || I18n.t("editor.saveError"));
       this.updateDirtyUI();
       return;
     }
@@ -262,8 +262,8 @@ const Editor = {
     this.pageType = result.type || this.pageType;
     this.updateTypeBadge();
     this.updateDirtyUI();
-    Toast.success(`Saved ${this.currentFile}`);
-    document.title = `Editing ${this.currentFile} — Veterm`;
+    Toast.success(I18n.t("editor.saved", { path: this.currentFile }));
+    document.title = I18n.t("editor.editingTitle", { path: this.currentFile });
 
     await App.onFileSaved(this.currentFile);
     await this.refreshFileTree();
@@ -273,7 +273,7 @@ const Editor = {
   async refreshFileTree(silent = false) {
     const tree = await App.getTree(true);
     if (!tree) {
-      if (!silent) Toast.error("Could not load the content tree.");
+      if (!silent) Toast.error(I18n.t("editor.loadError"));
       return;
     }
     this.setTree(tree);
@@ -317,7 +317,7 @@ const Editor = {
 
     this.treeEl.replaceChildren();
     const files = entries.filter((entry) => !entry.isDirectory).length;
-    this.countEl.textContent = `${files} file${files === 1 ? "" : "s"}`;
+    this.countEl.textContent = I18n.t("editor.fileCount", { count: files });
 
     if (entries.length === 0) {
       const empty = document.createElement("div");
@@ -390,7 +390,7 @@ const Editor = {
               return;
             }
             if (this.dirty && this.currentFile) {
-              if (!confirm("Discard unsaved changes and open another file?")) {
+              if (!confirm(I18n.t("editor.discard"))) {
                 return;
               }
               this.dirty = false;
@@ -429,7 +429,7 @@ const Editor = {
       path.includes("..") || path.includes("\\") || path.includes("\x00") ||
       /["']/.test(path)
     ) {
-      Toast.error("Invalid file path.");
+      Toast.error(I18n.t("editor.invalidPath"));
       return;
     }
     if (!/\.[a-z0-9]+$/i.test(path)) path += ".md";
@@ -437,12 +437,12 @@ const Editor = {
     const result = await API.execCommand(`touch "${path}"`);
     if (result.error || /^Error:/i.test(result.output || "")) {
       Toast.error(
-        result.output || result.error || "Could not create the file.",
+        result.output || result.error || I18n.t("editor.createError"),
       );
       return;
     }
 
-    Toast.success(`Created ${path}`);
+    Toast.success(I18n.t("editor.created", { path }));
     this.toggleNewForm(false);
     await App.getTree(true);
     await this.openFile(path, { source: "", newFile: true });
@@ -451,7 +451,7 @@ const Editor = {
   // ------------------------------------------------------------------ close/reset
   requestClose() {
     if (this.dirty) {
-      if (!confirm("Unsaved changes. Close the editor anyway?")) return false;
+      if (!confirm(I18n.t("editor.closeDirty"))) return false;
       this.dirty = false;
       this.isNew = false;
       this.showEmpty();
@@ -485,9 +485,16 @@ const Editor = {
 
   updateSession(session) {
     if (!this.sessionBadge) return;
-    this.sessionBadge.textContent = session && session.group
-      ? session.group
-      : "admin";
+    this.sessionBadge.textContent = session && session.group === "admin"
+      ? I18n.t("editor.session")
+      : (session?.group || I18n.t("editor.session"));
+  },
+
+  applyLanguage() {
+    if (!this.currentFile) this.filenameEl.textContent = I18n.t("editor.noFile");
+    this.updateSession(App.session);
+    this.updateStats();
+    this.updateCursor();
   },
 
   // ------------------------------------------------------------------ status
@@ -500,9 +507,7 @@ const Editor = {
       .split(/\s+/)
       .filter(Boolean).length;
     const words = cjk + latin;
-    this.statsEl.textContent = `${words} word${
-      words === 1 ? "" : "s"
-    } · ${text.length} chars`;
+    this.statsEl.textContent = I18n.t("editor.stats", { words, chars: text.length });
   },
 
   updateCursor() {
@@ -511,7 +516,7 @@ const Editor = {
     const before = this.textarea.value.slice(0, position);
     const line = before.split("\n").length;
     const column = position - before.lastIndexOf("\n");
-    this.cursorEl.textContent = `Ln ${line}, Col ${column}`;
+    this.cursorEl.textContent = I18n.t("editor.cursor", { line, col: column });
   },
 
   insertTab() {
