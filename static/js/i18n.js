@@ -52,7 +52,7 @@ const I18n = (() => {
       "common.minRead": "{count} min read",
       "common.minutesShort": "{count} min",
       "common.tagsCount": "{count} tags",
-      "common.language": "中文",
+      "common.language": "ZH",
       "common.switchLanguage": "Switch to Chinese",
       "common.open": "Open",
       "common.reload": "Reload",
@@ -473,7 +473,8 @@ const I18n = (() => {
   function detect() {
     try {
       const fromQuery = new URLSearchParams(location.search).get("lang");
-      if (fromQuery === "zh" || fromQuery === "en") return fromQuery;
+      if (fromQuery === "zh" || fromQuery === "cn") return "zh";
+      if (fromQuery === "en") return "en";
       const saved = localStorage.getItem("veterm-lang");
       if (saved === "zh" || saved === "en") return saved;
     } catch { /* ignore */ }
@@ -495,7 +496,7 @@ const I18n = (() => {
     },
 
     setLanguage(lang, { persist = true } = {}) {
-      state.lang = lang === "zh" ? "zh" : "en";
+      state.lang = (lang === "zh" || lang === "cn") ? "zh" : "en";
       document.documentElement.lang = state.lang === "zh" ? "zh-CN" : "en";
       if (persist) {
         try { localStorage.setItem("veterm-lang", state.lang); } catch { /* ignore */ }

@@ -40,10 +40,10 @@
   --editor-header: #1b1815;
   --toast-bg: #2a2621;
   --toast-ink: #f1e9dc;
-  --font-display: "Iowan Old Style", "Palatino Linotype", "Palatino", "Songti SC", "STSong", Georgia, serif;
-  --font-body: "Iowan Old Style", "Palatino Linotype", "Palatino", "Songti SC", "STSong", Georgia, serif;
-  --font-ui: "Avenir Next", "Inter", "Segoe UI", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
-  --font-mono: "Sarasa Mono SC", "LXGW WenKai Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Palatino", "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
+  --font-body: "Iowan Old Style", "Palatino Linotype", "Palatino", "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
+  --font-ui: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei", "Segoe UI", "Inter", system-ui, sans-serif;
+  --font-mono: "Sarasa Mono SC", "Sarasa Term SC", "Noto Sans Mono CJK SC", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* --- LIGHT --- */
@@ -83,16 +83,17 @@
   --editor-header: #eee5d7;
   --toast-bg: #2c251d;
   --toast-ink: #fbf5eb;
-  --font-display: "Iowan Old Style", "Palatino Linotype", "Palatino", "Songti SC", "STSong", Georgia, serif;
-  --font-body: "Iowan Old Style", "Palatino Linotype", "Palatino", "Songti SC", "STSong", Georgia, serif;
-  --font-ui: "Avenir Next", "Inter", "Segoe UI", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
-  --font-mono: "Sarasa Mono SC", "LXGW WenKai Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Palatino", "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
+  --font-body: "Iowan Old Style", "Palatino Linotype", "Palatino", "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
+  --font-ui: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei", "Segoe UI", "Inter", system-ui, sans-serif;
+  --font-mono: "Sarasa Mono SC", "Sarasa Term SC", "Noto Sans Mono CJK SC", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* --- base --- */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html {
   font-size: 16px;
+  font-synthesis: weight;
   scrollbar-color: var(--line-strong) transparent;
   scrollbar-width: thin;
 }
@@ -1548,4 +1549,23 @@ body.editor-open .toast { bottom: calc(var(--terminal-h, 0px) + 18px); }
   .topbar-actions .topbar-btn.lang-btn span {
     display: inline;
   }
+}
+
+/* Mixed Chinese/Latin typography */
+html[lang="zh-CN"] body {
+  letter-spacing: 0;
+}
+html[lang="zh-CN"] .hero-title {
+  font-size: clamp(2.5rem, 5.1vw, 4.8rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+html[lang="zh-CN"] .page-title,
+html[lang="zh-CN"] .article-title,
+html[lang="zh-CN"] .featured-title,
+html[lang="zh-CN"] .post-title,
+html[lang="zh-CN"] .project-card-title,
+html[lang="zh-CN"] .tag-card-name,
+html[lang="zh-CN"] .brand-name {
+  letter-spacing: -0.01em;
 }

@@ -187,7 +187,7 @@ const App = {
 
   updateLanguageUI() {
     const label = document.getElementById("language-label");
-    if (label) label.textContent = I18n.isChinese ? "EN" : "中文";
+    if (label) label.textContent = I18n.isChinese ? "EN" : "ZH";
     const button = document.querySelector('[data-action="language"]');
     if (button) {
       const text = I18n.t("common.switchLanguage");
